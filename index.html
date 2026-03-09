@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AttendTrack</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --c1:#293241;--c2:#3d5a80;--c3:#98c1d9;--c4:#e0fbfc;--c5:#ee6c4d;
+    --card:rgba(255,255,255,0.93);
+    --border:rgba(61,90,128,0.15);
+    --shadow:0 8px 40px rgba(41,50,65,0.13);
+    --text:#293241;--text-light:#3d5a80;--text-muted:#98c1d9;
+    --row-even:rgba(224,251,252,0.45);
+    --row-hover:rgba(152,193,217,0.25);
+    --bg-body-start:#293241;--bg-body-mid:#3d5a80;--bg-body-end:#e0fbfc;
+    --input-bg:rgba(224,251,252,0.35);
+    --input-border:rgba(61,90,128,0.18);
+    --list-item-bg:rgba(255,255,255,0.65);
+    --admin-section-bg:rgba(224,251,252,0.35);
+    --btn-grad:linear-gradient(135deg,#3d5a80 0%,#293241 100%);
+    --btn-grad2:linear-gradient(135deg,#98c1d9 0%,#3d5a80 100%);
+    --btn-accent:linear-gradient(135deg,#ee6c4d 0%,#e05a3a 100%);
+    --radius:16px;--radius-sm:10px;
+    --transition:0.28s cubic-bezier(.4,0,.2,1);
+  }
+  body.dark {
+    --card:rgba(30,40,58,0.97);
+    --border:rgba(152,193,217,0.13);
+    --shadow:0 8px 40px rgba(0,0,0,0.35);
+    --text:#e0fbfc;--text-light:#98c1d9;--text-muted:#5a7a9a;
+    --row-even:rgba(61,90,128,0.22);
+    --row-hover:rgba(152,193,217,0.12);
+    --bg-body-start:#111820;--bg-body-mid:#1a2840;--bg-body-end:#293241;
+    --input-bg:rgba(41,50,65,0.7);
+    --input-border:rgba(152,193,217,0.20);
+    --list-item-bg:rgba(41,50,65,0.8);
+    --admin-section-bg:rgba(41,50,65,0.55);
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'DM Sans',sans-serif;min-height:100vh;background:linear-gradient(145deg,var(--bg-body-start) 0%,var(--bg-body-mid) 40%,#98c1d9 75%,var(--bg-body-end) 100%);background-attachment:fixed;color:var(--text);overflow-x:hidden;transition:background 0.4s ease,color 0.4s ease;}
+  body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 65% 55% at 15% 15%,rgba(238,108,77,0.10) 0%,transparent 60%),radial-gradient(ellipse 55% 60% at 85% 80%,rgba(61,90,128,0.18) 0%,transparent 60%);pointer-events:none;z-index:0;}
+  .app-wrapper{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:24px 16px 60px;}
+
+  header{text-align:center;margin-bottom:20px;animation:fadeDown 0.7s ease both;position:relative;}
+  header h1{font-family:'Playfair Display',serif;font-size:clamp(1.8rem,5vw,2.8rem);color:#e0fbfc;text-shadow:0 2px 16px rgba(41,50,65,0.3);letter-spacing:-0.5px;}
+  header h1 span{color:#ee6c4d;}
+  header p{color:rgba(224,251,252,0.75);font-size:0.88rem;margin-top:4px;}
+  .dark-toggle{position:absolute;top:4px;right:0;background:rgba(41,50,65,0.5);border:2px solid rgba(152,193,217,0.25);border-radius:50px;padding:6px 14px;color:#e0fbfc;font-size:0.8rem;font-weight:600;cursor:pointer;transition:all var(--transition);backdrop-filter:blur(10px);font-family:'DM Sans',sans-serif;}
+  .dark-toggle:hover{background:rgba(61,90,128,0.6);}
+
+  .tabs{display:flex;gap:8px;justify-content:center;margin-bottom:20px;flex-wrap:wrap;animation:fadeDown 0.7s 0.1s ease both;}
+  .tab-btn{font-family:'DM Sans',sans-serif;font-size:0.86rem;font-weight:600;padding:8px 22px;border-radius:50px;border:2px solid rgba(224,251,252,0.2);background:rgba(41,50,65,0.45);color:rgba(224,251,252,0.8);cursor:pointer;transition:all var(--transition);backdrop-filter:blur(12px);white-space:nowrap;}
+  .tab-btn:hover{background:rgba(61,90,128,0.6);color:#e0fbfc;transform:translateY(-2px);}
+  .tab-btn.active{background:var(--btn-accent);color:#fff;border-color:transparent;box-shadow:0 4px 18px rgba(238,108,77,0.38);transform:translateY(-2px) scale(1.04);}
+
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);backdrop-filter:blur(20px);padding:26px 22px;animation:fadeUp 0.5s ease both;transition:background 0.4s ease,border-color 0.4s ease;}
+  @media(max-width:600px){.card{padding:16px 12px;}}
+  .page{display:none;}.page.active{display:block;animation:fadeIn 0.35s ease both;}
+  .hidden{display:none !important;}
+
+  .filter-bar{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;margin-bottom:14px;align-items:end;}
+  @media(max-width:700px){.filter-bar{grid-template-columns:1fr 1fr;}}
+  @media(max-width:420px){.filter-bar{grid-template-columns:1fr;}}
+
+  .form-row{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-bottom:16px;}
+  @media(max-width:700px){.form-row{grid-template-columns:1fr 1fr;}}
+  @media(max-width:440px){.form-row{grid-template-columns:1fr;}}
+  .form-group{display:flex;flex-direction:column;gap:5px;}
+  .form-group label{font-size:0.71rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.9px;}
+
+  input,select{font-family:'DM Sans',sans-serif;font-size:0.90rem;padding:9px 12px;border-radius:var(--radius-sm);border:2px solid var(--input-border);background:var(--input-bg);color:var(--text);transition:all var(--transition);outline:none;width:100%;}
+  input:focus,select:focus{border-color:var(--c2);background:var(--card);box-shadow:0 0 0 3px rgba(61,90,128,0.10);}
+  select{cursor:pointer;}select:disabled{opacity:0.6;cursor:not-allowed;}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;font-family:'DM Sans',sans-serif;font-size:0.87rem;font-weight:700;padding:9px 20px;border-radius:50px;border:none;cursor:pointer;transition:all var(--transition);white-space:nowrap;}
+  .btn-primary{background:var(--btn-grad);color:#e0fbfc;}
+  .btn-primary:hover{transform:translateY(-2px) scale(1.03);filter:brightness(1.1);}
+  .btn-accent{background:var(--btn-accent);color:#fff;box-shadow:0 3px 14px rgba(238,108,77,0.28);}
+  .btn-accent:hover{transform:translateY(-2px) scale(1.03);filter:brightness(1.08);}
+  .btn-success{background:var(--btn-grad2);color:#fff;}
+  .btn-success:hover{transform:translateY(-2px) scale(1.03);filter:brightness(1.08);}
+  .btn-warning{background:linear-gradient(135deg,#f6ad55,#ed8936);color:#fff;}
+  .btn-warning:hover{transform:translateY(-2px) scale(1.03);filter:brightness(1.08);}
+  .btn-info{background:linear-gradient(135deg,#98c1d9,#3d5a80);color:#fff;}
+  .btn-info:hover{transform:translateY(-2px) scale(1.03);filter:brightness(1.08);}
+  .btn-secondary{background:linear-gradient(135deg,#b0bec5,#78909c);color:#fff;}
+  .btn-secondary:hover{transform:translateY(-2px) scale(1.03);filter:brightness(1.08);}
+  .btn-danger{background:var(--btn-accent);color:#fff;}
+  .btn-danger:hover{transform:translateY(-2px) scale(1.05);}
+  .btn-ghost{background:transparent;border:2px solid var(--c3);color:var(--text-light);}
+  .btn-ghost:hover{background:var(--row-even);transform:translateY(-1px);}
+  .btn-sm{padding:5px 14px;font-size:0.78rem;}
+  .btn-xs{padding:3px 10px;font-size:0.72rem;}
+  .btn:disabled{opacity:0.5;cursor:not-allowed;transform:none !important;filter:none !important;}
+
+  .section-title{font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--text-light);margin-bottom:14px;display:flex;align-items:center;gap:10px;}
+  .section-title::after{content:'';flex:1;height:2px;background:linear-gradient(90deg,rgba(61,90,128,0.2) 0%,transparent 100%);border-radius:2px;}
+
+  .table-wrap{overflow-x:auto;border-radius:var(--radius-sm);margin-top:6px;-webkit-overflow-scrolling:touch;}
+  table{width:100%;border-collapse:collapse;font-size:0.85rem;min-width:400px;}
+  thead tr{background:linear-gradient(90deg,rgba(61,90,128,0.10) 0%,rgba(152,193,217,0.08) 100%);}
+  thead th{padding:10px 11px;text-align:left;font-weight:700;font-size:0.70rem;letter-spacing:0.9px;text-transform:uppercase;color:var(--text-light);white-space:nowrap;border-bottom:2px solid rgba(61,90,128,0.12);}
+  tbody tr{transition:backgroundvar(--transition);border-bottom:1px solid rgba(61,90,128,0.07);}
+  tbody tr:nth-child(even){background:var(--row-even);}
+  tbody tr:hover{background:var(--row-hover) !important;}
+  tbody td{padding:9px 11px;vertical-align:middle;color:var(--text);}
+  tbody td select{padding:4px 7px;font-size:0.79rem;border-radius:7px;min-width:80px;width:auto;}
+  tbody td input[type="date"]{padding:4px 7px;font-size:0.79rem;border-radius:7px;width:auto;min-width:115px;}
+  tbody td input[type="text"]{padding:4px 7px;font-size:0.79rem;border-radius:7px;width:auto;min-width:90px;}
+
+  .empty-state{text-align:center;padding:34px 20px;color:var(--text-muted);font-size:0.87rem;font-style:italic;}
+
+  .badge{display:inline-block;padding:2px 8px;border-radius:50px;font-size:0.71rem;font-weight:700;}
+  .badge-day{background:rgba(152,193,217,0.22);color:#2a4a6b;font-size:0.68rem;}
+  body.dark .badge-day{background:rgba(61,90,128,0.35);color:#98c1d9;}
+
+  /* action column buttons */
+  .action-btns{display:flex;gap:4px;flex-wrap:nowrap;align-items:center;}
+
+  /* MEAL SUMMARY */
+  .meal-summary-box{background:var(--admin-section-bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:20px;margin-top:8px;}
+  .meal-month-row{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap;}
+  .meal-month-row label{font-size:0.71rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.9px;white-space:nowrap;}
+  .meal-month-row select{width:auto;min-width:160px;}
+  .meal-cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media(max-width:480px){.meal-cards{grid-template-columns:1fr;}}
+  .meal-person-card{border-radius:var(--radius-sm);padding:18px 20px;display:flex;align-items:center;gap:16px;transition:transform var(--transition);}
+  .meal-person-card:hover{transform:translateY(-2px);}
+  .meal-person-card.nadeem{background:linear-gradient(135deg,rgba(61,90,128,0.18) 0%,rgba(152,193,217,0.12) 100%);border:1.5px solid rgba(61,90,128,0.20);}
+  .meal-person-card.shakeel{background:linear-gradient(135deg,rgba(238,108,77,0.14) 0%,rgba(238,108,77,0.06) 100%);border:1.5px solid rgba(238,108,77,0.20);}
+  body.dark .meal-person-card.nadeem{background:linear-gradient(135deg,rgba(61,90,128,0.35) 0%,rgba(152,193,217,0.10) 100%);}
+  body.dark .meal-person-card.shakeel{background:linear-gradient(135deg,rgba(238,108,77,0.22) 0%,rgba(238,108,77,0.08) 100%);}
+  .meal-avatar{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:700;color:#fff;flex-shrink:0;}
+  .meal-avatar.nadeem{background:rgba(61,90,128,0.5);}
+  .meal-avatar.shakeel{background:rgba(238,108,77,0.5);}
+  .meal-info .meal-name{font-weight:700;font-size:0.95rem;color:var(--text);}
+  .meal-info .meal-count{font-family:'Playfair Display',serif;font-size:2rem;line-height:1;margin-top:2px;}
+  .meal-info .meal-count.nadeem{color:#3d5a80;}
+  .meal-info .meal-count.shakeel{color:#ee6c4d;}
+  .meal-info .meal-sub{font-size:0.72rem;color:var(--text-muted);margin-top:3px;}
+  .meal-total-row{margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
+  .meal-total-row span{font-size:0.82rem;color:var(--text-muted);}
+  .meal-total-row strong{font-size:0.95rem;color:var(--text);font-family:'Playfair Display',serif;}
+
+  /* EMPLOYEE COUNT */
+  .count-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;margin-top:8px;}
+  .count-card{background:var(--admin-section-bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;display:flex;align-items:center;gap:10px;transition:transform var(--transition);}
+  .count-card:hover{transform:translateY(-2px);}
+  .count-num{font-family:'Playfair Display',serif;font-size:1.5rem;color:var(--c5);min-width:34px;text-align:center;line-height:1;}
+  .count-name{font-size:0.82rem;font-weight:600;color:var(--text);line-height:1.3;}
+  .count-sub{font-size:0.69rem;color:var(--text-muted);margin-top:2px;}
+
+  .cache-bar{display:flex;align-items:center;gap:8px;font-size:0.73rem;color:var(--text-muted);margin-bottom:8px;flex-wrap:wrap;}
+  .cache-dot{width:7px;height:7px;border-radius:50%;background:#98c1d9;display:inline-block;flex-shrink:0;}
+  .cache-dot.fresh{background:#3d5a80;}.cache-dot.stale{background:#ee6c4d;}
+  .cache-refresh{font-size:0.71rem;color:var(--c5);cursor:pointer;text-decoration:underline;font-weight:600;background:none;border:none;padding:0;font-family:inherit;}
+
+  .total-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(61,90,128,0.12);border:1px solid rgba(61,90,128,0.18);border-radius:50px;padding:3px 12px;font-size:0.76rem;font-weight:700;color:var(--text-light);margin-left:auto;}
+  .total-badge span{color:var(--c5);font-size:0.9rem;}
+
+  .login-card{max-width:370px;margin:0 auto;}
+
+  .admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:20px;}
+  @media(max-width:560px){.admin-grid{grid-template-columns:1fr;}}
+  .admin-section{background:var(--admin-section-bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:15px;transition:background 0.4s ease;}
+  .admin-section h3{font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);margin-bottom:10px;}
+  .list-item{display:flex;align-items:center;justify-content:space-between;padding:6px 9px;border-radius:8px;margin-bottom:4px;background:var(--list-item-bg);font-size:0.85rem;transition:background var(--transition);gap:8px;}
+  .list-item span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);}
+  .list-item:hover{background:var(--row-hover);}
+  .add-row{display:flex;gap:8px;margin-top:10px;}
+  .add-row input{flex:1;min-width:0;}
+
+  .divider{height:1px;background:linear-gradient(90deg,transparent,rgba(61,90,128,0.15),transparent);margin:20px 0;}
+
+  #toast{position:fixed;bottom:18px;right:16px;left:16px;max-width:300px;margin:0 auto;padding:11px 18px;border-radius:12px;font-weight:600;font-size:0.84rem;color:#fff;z-index:9999;opacity:0;transform:translateY(14px);transition:all 0.3s cubic-bezier(.4,0,.2,1);pointer-events:none;text-align:center;}
+  @media(min-width:480px){#toast{left:auto;max-width:270px;}}
+  #toast.show{opacity:1;transform:translateY(0);}
+  #toast.success{background:linear-gradient(135deg,#3d5a80,#293241);}
+  #toast.error{background:linear-gradient(135deg,#ee6c4d,#e05a3a);}
+  #toast.info{background:linear-gradient(135deg,#98c1d9,#3d5a80);}
+
+  .spinner{display:inline-block;width:13px;height:13px;border:2.5px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;}
+
+  @media(max-width:600px){
+    .action-btns .btn{padding:4px 8px;font-size:0.68rem;}
+    thead th{font-size:0.65rem;padding:8px 6px;}
+    tbody td{padding:7px 6px;font-size:0.79rem;}
+  }
+  @keyframes fadeDown{from{opacity:0;transform:translateY(-20px);}to{opacity:1;transform:translateY(0);}}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+  @keyframes fadeIn{from{opacity:0;transform:scale(0.98) translateY(8px);}to{opacity:1;transform:scale(1) translateY(0);}}
+  @keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<div class="app-wrapper">
+
+  <header>
+    <h1>Attend<span>Track</span></h1>
+    <p>Employee Attendance Management System</p>
+    <button class="dark-toggle" onclick="toggleDark()" id="darkBtn">Dark</button>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showPage('attendance')">Attendance</button>
+    <button class="tab-btn" onclick="showPage('login')" id="loginTabBtn">Admin Login</button>
+    <button class="tab-btn hidden" onclick="showPage('admin')" id="adminTabBtn">Admin</button>
+  </div>
+
+  <!-- ATTENDANCE PAGE -->
+  <div class="page active" id="page-attendance">
+    <div class="card">
+      <div class="section-title">Mark Attendance</div>
+      <div class="form-row">
+        <div class="form-group"><label>Employee</label><select id="att-employee"><option value="">Select Employee</option></select></div>
+        <div class="form-group"><label>Site</label><select id="att-site"><option value="">Select Site</option></select></div>
+        <div class="form-group"><label>Date</label><input type="date" id="att-date"></div>
+      </div>
+      <button class="btn btn-accent" onclick="markAttendance()" id="markBtn">Mark Attendance</button>
+      <div class="divider"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+        <div class="section-title" style="margin-bottom:0">Attendance Records</div>
+        <div class="total-badge" id="att-total-badge" style="display:none">Total: <span id="att-total-num">0</span></div>
+      </div>
+      <div class="filter-bar">
+        <div class="form-group"><label>Search Name</label><input type="text" id="f-name" placeholder="Type name..." oninput="applyFilters()"></div>
+        <div class="form-group"><label>Filter Site</label><select id="f-site" onchange="applyFilters()"><option value="">All Sites</option></select></div>
+        <div class="form-group"><label>Filter Date</label><input type="date" id="f-date" onchange="applyFilters()"></div>
+        <button class="btn btn-ghost btn-sm" onclick="clearFilters()" style="align-self:flex-end">Clear</button>
+      </div>
+      <div class="cache-bar" id="att-cache-bar" style="display:none">
+        <span class="cache-dot" id="att-cache-dot"></span>
+        <span id="att-cache-label"></span>
+        <button class="cache-refresh" onclick="refreshAttendance()">Refresh</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Date</th><th>Day</th><th>Name</th><th>Site</th></tr></thead>
+          <tbody id="att-tbody"><tr><td colspan="5" class="empty-state"><span class="spinner"></span> Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOGIN PAGE -->
+  <div class="page" id="page-login">
+    <div class="card login-card">
+      <div class="section-title" style="justify-content:center">Admin Login</div>
+      <div class="form-group" style="margin-bottom:12px"><label>Username</label><input type="text" id="login-user" placeholder="Enter username" autocomplete="username"></div>
+      <div class="form-group" style="margin-bottom:18px"><label>Password</label><input type="password" id="login-pass" placeholder="Enter password" onkeydown="if(event.key==='Enter') doLogin()"></div>
+      <button class="btn btn-accent" style="width:100%" onclick="doLogin()" id="loginBtn">Login</button>
+    </div>
+  </div>
+
+  <!-- ADMIN PAGE -->
+  <div class="page" id="page-admin">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+        <div class="section-title" style="margin-bottom:0">Admin Panel</div>
+        <button class="btn btn-danger btn-sm" onclick="doLogout()">Logout</button>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <div class="section-title" style="margin-bottom:0">All Attendance Records</div>
+        <div class="total-badge" id="admin-total-badge" style="display:none">Total: <span id="admin-total-num">0</span></div>
+      </div>
+      <div class="filter-bar">
+        <div class="form-group"><label>Search Name</label><input type="text" id="af-name" placeholder="Type name..." oninput="applyAdminFilters()"></div>
+        <div class="form-group"><label>Filter Site</label><select id="af-site" onchange="applyAdminFilters()"><option value="">All Sites</option></select></div>
+        <div class="form-group"><label>Filter Date</label><input type="date" id="af-date" onchange="applyAdminFilters()"></div>
+        <button class="btn btn-ghost btn-sm" onclick="clearAdminFilters()" style="align-self:flex-end">Clear</button>
+      </div>
+      <div class="cache-bar" id="admin-cache-bar" style="display:none">
+        <span class="cache-dot" id="admin-cache-dot"></span>
+        <span id="admin-cache-label"></span>
+        <button class="cache-refresh" onclick="refreshAdminAttendance()">Refresh</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Date</th>
+              <th>Day</th>
+              <th>Name</th>
+              <th>Site</th>
+              <th>Meal</th>
+              <th>Paid By</th>
+              <th>Edit</th>
+              <th>Delete</th>
+            </tr>
+          </thead>
+          <tbody id="admin-tbody">
+            <tr><td colspan="9" class="empty-state"><span class="spinner"></span> Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- MEAL SUMMARY -->
+      <div class="divider"></div>
+      <div class="section-title">Meal Summary by Month</div>
+      <div class="meal-summary-box">
+        <div class="meal-month-row">
+          <label>Select Month</label>
+          <select id="meal-month-sel" onchange="renderMealSummary()"><option value="">All Time</option></select>
+        </div>
+        <div class="meal-cards">
+          <div class="meal-person-card nadeem">
+            <div class="meal-avatar nadeem">N</div>
+            <div class="meal-info">
+              <div class="meal-name">Nadeem</div>
+              <div class="meal-count nadeem" id="meal-nadeem">0</div>
+              <div class="meal-sub">meals paid</div>
+            </div>
+          </div>
+          <div class="meal-person-card shakeel">
+            <div class="meal-avatar shakeel">S</div>
+            <div class="meal-info">
+              <div class="meal-name">Shakeel</div>
+              <div class="meal-count shakeel" id="meal-shakeel">0</div>
+              <div class="meal-sub">meals paid</div>
+            </div>
+          </div>
+        </div>
+        <div class="meal-total-row">
+          <span>Total meals this period:</span>
+          <strong id="meal-total">0 meals</strong>
+        </div>
+      </div>
+
+      <!-- EMPLOYEE COUNT -->
+      <div class="divider"></div>
+      <div class="section-title">Attendance Count per Employee</div>
+      <div class="count-grid" id="count-grid">
+        <div class="empty-state" style="padding:16px;grid-column:1/-1">Loading counts...</div>
+      </div>
+
+      <!-- MANAGE EMPLOYEES & SITES -->
+      <div class="admin-grid">
+        <div class="admin-section">
+          <h3>Employees</h3>
+          <div id="emp-list"></div>
+          <div class="add-row">
+            <input type="text" id="new-emp" placeholder="New employee name...">
+            <button class="btn btn-success btn-sm" onclick="addEmployee()">Add</button>
+          </div>
+        </div>
+        <div class="admin-section">
+          <h3>Sites</h3>
+          <div id="site-list"></div>
+          <div class="add-row">
+            <input type="text" id="new-site" placeholder="New site name...">
+            <button class="btn btn-success btn-sm" onclick="addSite()">Add</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════
+//  PASTE YOUR APPS SCRIPT URL HERE
+// ════════════════════════════════════════
+const API = 'https://script.google.com/macros/s/AKfycbyeZvthC0e9O6MMHUpXC9pLovrxSoN_F2WoEMZms8yC2wVGGg3nU7H7pTVOoq9iFkpW/exec';
+
+// ════════════════════════════════════════
+//  API HELPERS
+// ════════════════════════════════════════
+async function apiGet(params) {
+  const url = new URL(API);
+  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k,v));
+  const res = await fetch(url.toString());
+  return res.json();
+}
+async function apiPost(data) {
+  const res = await fetch(API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  return res.json();
+}
+
+// ════════════════════════════════════════
+//  CACHE
+// ════════════════════════════════════════
+const CACHE_TTL = 5*60*1000;
+const CK = {att:'at_att',emp:'at_emp',sites:'at_sites',ts_att:'at_ts_att',ts_emp:'at_ts_emp',ts_site:'at_ts_site',dark:'at_dark'};
+function cs(k,d){try{sessionStorage.setItem(k,JSON.stringify(d));}catch(e){}}
+function cg(k){try{const v=sessionStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;}}
+function fresh(k){const t=cg(k);return t&&(Date.now()-t)<CACHE_TTL;}
+function cacheLabel(k){const t=cg(k);if(!t)return'No cache';const a=Date.now()-t;return a<60000?'Cached just now':`Cached ${Math.floor(a/60000)}m ago`;}
+
+// ════════════════════════════════════════
+//  STATE & HELPERS
+// ════════════════════════════════════════
+const DAYS=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
+let isAdmin=false, allAttData=[], allAdminData=[];
+
+function formatDate(v){if(!v)return"";const d=new Date(v);if(isNaN(d))return v;return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
+function getDayName(v){if(!v)return"";const d=new Date(v);if(isNaN(d))return"";return DAYS[d.getDay()];}
+function toInputDate(v){if(!v)return"";const d=new Date(v);if(isNaN(d))return"";return d.toISOString().split('T')[0];}
+function todayStr(){return new Date().toISOString().split('T')[0];}
+
+// ════════════════════════════════════════
+//  DARK MODE
+// ════════════════════════════════════════
+function toggleDark(){
+  document.body.classList.toggle('dark');
+  const dark=document.body.classList.contains('dark');
+  document.getElementById('darkBtn').textContent=dark?'Light':'Dark';
+  cs(CK.dark,dark);
+}
+(function(){if(cg(CK.dark)){document.body.classList.add('dark');document.getElementById('darkBtn').textContent='Light';}})();
+
+// ════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════
+document.getElementById('att-date').value=todayStr();
+loadEmployees(false);
+loadSites(false);
+loadAttendanceTable(false);
+
+// ════════════════════════════════════════
+//  PAGE NAV
+// ════════════════════════════════════════
+function showPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    if(btn.getAttribute('onclick')&&btn.getAttribute('onclick').includes("'"+name+"'")) btn.classList.add('active');
+  });
+  if(name==='admin') loadAdminAttendanceTable(false);
+  if(name==='attendance') loadAttendanceTable(false);
+}
+
+// ════════════════════════════════════════
+//  CACHE BAR
+// ════════════════════════════════════════
+function updateCacheBar(barId,dotId,labelId,tsKey){
+  const bar=document.getElementById(barId);if(!bar)return;
+  bar.style.display='flex';
+  document.getElementById(dotId).className='cache-dot '+(fresh(tsKey)?'fresh':'stale');
+  document.getElementById(labelId).textContent=cacheLabel(tsKey);
+}
+
+// ════════════════════════════════════════
+//  LOAD EMPLOYEES
+// ════════════════════════════════════════
+async function loadEmployees(force){
+  const c=cg(CK.emp);
+  if(!force&&c&&fresh(CK.ts_emp)){renderEmployeeSelects(c);return;}
+  try{
+    const d=await apiGet({action:'getEmployees'});
+    cs(CK.emp,d);cs(CK.ts_emp,Date.now());
+    renderEmployeeSelects(d);
+  }catch(e){showToast('Failed to load employees.','error');}
+}
+function renderEmployeeSelects(d){
+  const s=document.getElementById('att-employee'),l=document.getElementById('emp-list');
+  s.innerHTML='<option value="">Select Employee</option>';
+  if(l)l.innerHTML='';
+  (d||[]).forEach(n=>{
+    s.innerHTML+=`<option value="${n}">${n}</option>`;
+    if(l){const div=document.createElement('div');div.className='list-item';div.innerHTML=`<span>${n}</span><button class="btn btn-danger btn-xs" onclick="deleteEmployee('${n}')">Remove</button>`;l.appendChild(div);}
+  });
+}
+
+// ════════════════════════════════════════
+//  LOAD SITES
+// ════════════════════════════════════════
+async function loadSites(force){
+  const c=cg(CK.sites);
+  if(!force&&c&&fresh(CK.ts_site)){renderSiteSelects(c);populateFilterSites(c);return;}
+  try{
+    const d=await apiGet({action:'getSites'});
+    cs(CK.sites,d);cs(CK.ts_site,Date.now());
+    renderSiteSelects(d);populateFilterSites(d);
+  }catch(e){showToast('Failed to load sites.','error');}
+}
+function renderSiteSelects(d){
+  const s=document.getElementById('att-site'),l=document.getElementById('site-list');
+  s.innerHTML='<option value="">Select Site</option>';
+  if(l)l.innerHTML='';
+  (d||[]).forEach(n=>{
+    s.innerHTML+=`<option value="${n}">${n}</option>`;
+    if(l){const div=document.createElement('div');div.className='list-item';div.innerHTML=`<span>${n}</span><button class="btn btn-danger btn-xs" onclick="deleteSite('${n}')">Remove</button>`;l.appendChild(div);}
+  });
+}
+function populateFilterSites(d){
+  ['f-site','af-site'].forEach(id=>{
+    const sel=document.getElementById(id);if(!sel)return;
+    const cur=sel.value;sel.innerHTML='<option value="">All Sites</option>';
+    (d||[]).forEach(n=>{sel.innerHTML+=`<option value="${n}">${n}</option>`;});
+    sel.value=cur;
+  });
+}
+
+// ════════════════════════════════════════
+//  LOAD ATTENDANCE (public)
+// ════════════════════════════════════════
+async function loadAttendanceTable(force){
+  const tbody=document.getElementById('att-tbody');
+  const c=cg(CK.att);
+  if(!force&&c&&fresh(CK.ts_att)){allAttData=c;applyFilters();updateCacheBar('att-cache-bar','att-cache-dot','att-cache-label',CK.ts_att);return;}
+  tbody.innerHTML='<tr><td colspan="5" class="empty-state"><span class="spinner"></span> Loading...</td></tr>';
+  try{
+    const data=await apiGet({action:'getAttendanceWithRowIndex'});
+    cs(CK.att,data);cs(CK.ts_att,Date.now());
+    allAttData=data||[];applyFilters();
+    updateCacheBar('att-cache-bar','att-cache-dot','att-cache-label',CK.ts_att);
+  }catch(e){
+    tbody.innerHTML='<tr><td colspan="5" class="empty-state" style="color:#ee6c4d">Error loading data. Check your API URL.</td></tr>';
+  }
+}
+function refreshAttendance(){cs(CK.ts_att,0);loadAttendanceTable(true);showToast('Refreshing...','info');}
+
+// ════════════════════════════════════════
+//  PUBLIC FILTERS
+// ════════════════════════════════════════
+function applyFilters(){
+  const name=(document.getElementById('f-name').value||'').toLowerCase().trim();
+  const site=document.getElementById('f-site').value;
+  const date=document.getElementById('f-date').value;
+  const f=allAttData.filter(r=>(!name||(r[3]||'').toLowerCase().includes(name))&&(!site||r[4]===site)&&(!date||toInputDate(r[2])===date));
+  renderAttTable(f);
+  const b=document.getElementById('att-total-badge');b.style.display='inline-flex';
+  document.getElementById('att-total-num').textContent=f.length;
+}
+function clearFilters(){document.getElementById('f-name').value='';document.getElementById('f-site').value='';document.getElementById('f-date').value='';applyFilters();}
+function renderAttTable(data){
+  const tbody=document.getElementById('att-tbody');tbody.innerHTML='';
+  if(!data||data.length===0){tbody.innerHTML='<tr><td colspan="5" class="empty-state">No records found.</td></tr>';return;}
+  data.forEach((row,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${i+1}</td><td>${formatDate(row[2])}</td><td><span class="badge badge-day">${getDayName(row[2])}</span></td><td>${row[3]}</td><td>${row[4]}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ════════════════════════════════════════
+//  MARK ATTENDANCE
+// ════════════════════════════════════════
+async function markAttendance(){
+  const name=document.getElementById('att-employee').value;
+  const site=document.getElementById('att-site').value;
+  const date=document.getElementById('att-date').value;
+  if(!name){showToast('Please select an employee.','error');return;}
+  if(!site){showToast('Please select a site.','error');return;}
+  if(!date){showToast('Please pick a date.','error');return;}
+  const btn=document.getElementById('markBtn');
+  btn.innerHTML='<span class="spinner"></span> Saving...';btn.disabled=true;
+  try{
+    await apiPost({action:'markAttendance',name,site,date});
+    showToast('Attendance marked!','success');
+    cs(CK.ts_att,0);loadAttendanceTable(true);
+    if(isAdmin)loadAdminAttendanceTable(true);
+  }catch(e){showToast('Error saving attendance.','error');}
+  btn.innerHTML='Mark Attendance';btn.disabled=false;
+}
+
+// ════════════════════════════════════════
+//  ADMIN ATTENDANCE TABLE
+// ════════════════════════════════════════
+async function loadAdminAttendanceTable(force){
+  if(!isAdmin)return;
+  const tbody=document.getElementById('admin-tbody');
+  const c=cg(CK.att);
+  if(!force&&c&&fresh(CK.ts_att)){
+    allAdminData=c;applyAdminFilters();renderEmployeeCounts(c);populateMealMonths(c);
+    updateCacheBar('admin-cache-bar','admin-cache-dot','admin-cache-label',CK.ts_att);return;
+  }
+  tbody.innerHTML='<tr><td colspan="9" class="empty-state"><span class="spinner"></span> Loading...</td></tr>';
+  try{
+    const [employees,sites,data]=await Promise.all([
+      apiGet({action:'getEmployees'}),
+      apiGet({action:'getSites'}),
+      apiGet({action:'getAttendanceWithRowIndex'})
+    ]);
+    cs(CK.att,data);cs(CK.ts_att,Date.now());
+    cs(CK.emp,employees);cs(CK.ts_emp,Date.now());
+    cs(CK.sites,sites);cs(CK.ts_site,Date.now());
+    allAdminData=data||[];
+    applyAdminFilters();renderEmployeeCounts(allAdminData);populateMealMonths(allAdminData);
+    renderEmployeeSelects(employees);renderSiteSelects(sites);populateFilterSites(sites);
+    updateCacheBar('admin-cache-bar','admin-cache-dot','admin-cache-label',CK.ts_att);
+  }catch(e){
+    tbody.innerHTML='<tr><td colspan="9" class="empty-state" style="color:#ee6c4d">Error loading data.</td></tr>';
+  }
+}
+function refreshAdminAttendance(){cs(CK.ts_att,0);loadAdminAttendanceTable(true);showToast('Refreshing...','info');}
+
+// ════════════════════════════════════════
+//  ADMIN FILTERS
+// ════════════════════════════════════════
+function applyAdminFilters(){
+  const name=(document.getElementById('af-name').value||'').toLowerCase().trim();
+  const site=document.getElementById('af-site').value;
+  const date=document.getElementById('af-date').value;
+  const f=allAdminData.filter(r=>(!name||(r[3]||'').toLowerCase().includes(name))&&(!site||r[4]===site)&&(!date||toInputDate(r[2])===date));
+  buildAdminTable(f);
+  const b=document.getElementById('admin-total-badge');b.style.display='inline-flex';
+  document.getElementById('admin-total-num').textContent=f.length;
+}
+function clearAdminFilters(){document.getElementById('af-name').value='';document.getElementById('af-site').value='';document.getElementById('af-date').value='';applyAdminFilters();}
+
+// ════════════════════════════════════════
+//  MEAL SUMMARY
+// ════════════════════════════════════════
+function populateMealMonths(data){
+  const sel=document.getElementById('meal-month-sel');
+  const cur=sel.value;
+  const months=new Set();
+  (data||[]).forEach(row=>{const d=new Date(row[2]);if(!isNaN(d))months.add(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));});
+  const sorted=Array.from(months).sort((a,b)=>b.localeCompare(a));
+  sel.innerHTML='<option value="">All Time</option>';
+  sorted.forEach(ym=>{
+    const[yr,mo]=ym.split('-');
+    sel.innerHTML+=`<option value="${ym}"${ym===cur?' selected':''}>${MONTHS[parseInt(mo)-1]} ${yr}</option>`;
+  });
+  renderMealSummary();
+}
+function renderMealSummary(){
+  const sel=document.getElementById('meal-month-sel').value;
+  const filtered=allAdminData.filter(row=>{
+    if(!sel)return true;
+    const d=new Date(row[2]);if(isNaN(d))return false;
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')===sel;
+  });
+  let nadeem=0,shakeel=0,total=0;
+  filtered.forEach(row=>{if(row[5]==='Yes'){total++;if(row[6]==='Nadeem')nadeem++;else if(row[6]==='Shakeel')shakeel++;}});
+  document.getElementById('meal-nadeem').textContent=nadeem;
+  document.getElementById('meal-shakeel').textContent=shakeel;
+  document.getElementById('meal-total').textContent=total+(total===1?' meal':' meals');
+}
+
+// ════════════════════════════════════════
+//  EMPLOYEE COUNT
+// ════════════════════════════════════════
+function renderEmployeeCounts(data){
+  const grid=document.getElementById('count-grid');if(!grid)return;
+  if(!data||data.length===0){grid.innerHTML='<div class="empty-state" style="padding:16px;grid-column:1/-1">No data yet.</div>';return;}
+  const counts={};
+  data.forEach(row=>{const n=row[3];if(n)counts[n]=(counts[n]||0)+1;});
+  const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  grid.innerHTML='';
+  sorted.forEach(([name,count])=>{
+    const div=document.createElement('div');div.className='count-card';
+    div.innerHTML=`<div class="count-num">${count}</div><div><div class="count-name">${name}</div><div class="count-sub">attendance${count!==1?'s':''}</div></div>`;
+    grid.appendChild(div);
+  });
+}
+
+// ════════════════════════════════════════
+//  BUILD ADMIN TABLE
+//  Columns: # | Date | Day | Name | Site | Meal | Paid By | Edit | Delete
+// ════════════════════════════════════════
+function buildAdminTable(data){
+  const employees=cg(CK.emp)||[],sites=cg(CK.sites)||[];
+  const tbody=document.getElementById('admin-tbody');tbody.innerHTML='';
+  if(!data||data.length===0){tbody.innerHTML='<tr><td colspan="9" class="empty-state">No records found.</td></tr>';return;}
+
+  data.forEach((row,i)=>{
+    const tr=document.createElement('tr');
+
+    // # serial
+    const tdNum=document.createElement('td');tdNum.innerText=i+1;tr.appendChild(tdNum);
+
+    // Date — display span + hidden input
+    const tdDate=document.createElement('td');
+    const dateSpan=document.createElement('span');dateSpan.innerText=formatDate(row[2]);
+    const dateInput=document.createElement('input');dateInput.type='date';dateInput.className='hidden';dateInput.value=toInputDate(row[2]);
+    tdDate.appendChild(dateSpan);tdDate.appendChild(dateInput);tr.appendChild(tdDate);
+
+    // Day badge
+    const tdDay=document.createElement('td');
+    const daySpan=document.createElement('span');daySpan.className='badge badge-day';daySpan.innerText=getDayName(row[2]);
+    tdDay.appendChild(daySpan);tr.appendChild(tdDay);
+    dateInput.addEventListener('change',()=>{daySpan.innerText=getDayName(dateInput.value);});
+
+    // Name — span + hidden select
+    const tdName=document.createElement('td');
+    const nameSpan=document.createElement('span');nameSpan.innerText=row[3];
+    const nameSelect=document.createElement('select');nameSelect.className='hidden';
+    employees.forEach(e=>{const o=document.createElement('option');o.value=e;o.text=e;if(e===row[3])o.selected=true;nameSelect.add(o);});
+    tdName.appendChild(nameSpan);tdName.appendChild(nameSelect);tr.appendChild(tdName);
+
+    // Site — span + hidden select
+    const tdSite=document.createElement('td');
+    const siteSpan=document.createElement('span');siteSpan.innerText=row[4];
+    const siteSel=document.createElement('select');siteSel.className='hidden';
+    sites.forEach(s=>{const o=document.createElement('option');o.value=s;o.text=s;if(s===row[4])o.selected=true;siteSel.add(o);});
+    tdSite.appendChild(siteSpan);tdSite.appendChild(siteSel);tr.appendChild(tdSite);
+
+    // Meal
+    const tdMeal=document.createElement('td');
+    const mealSel=document.createElement('select');mealSel.disabled=true;
+    [{v:'',t:'--'},{v:'Yes',t:'Yes'},{v:'No',t:'No'}].forEach(({v,t})=>{const o=document.createElement('option');o.value=v;o.text=t;if(v===row[5])o.selected=true;mealSel.add(o);});
+    if(!row[5])mealSel.value='';
+    tdMeal.appendChild(mealSel);tr.appendChild(tdMeal);
+
+    // Paid By
+    const tdPaid=document.createElement('td');
+    const paidSel=document.createElement('select');paidSel.disabled=true;
+    [{v:'',t:'--'},{v:'Nadeem',t:'Nadeem'},{v:'Shakeel',t:'Shakeel'}].forEach(({v,t})=>{const o=document.createElement('option');o.value=v;o.text=t;if(v===row[6])o.selected=true;paidSel.add(o);});
+    if(!row[6])paidSel.value='';
+    tdPaid.appendChild(paidSel);tr.appendChild(tdPaid);
+    mealSel.addEventListener('change',()=>{
+      if(mealSel.value==='Yes')paidSel.value='Nadeem';
+      else if(mealSel.value==='No')paidSel.value='';
+      else paidSel.value='';
+    });
+
+    // ── EDIT COLUMN ──
+    const tdEdit=document.createElement('td');
+    const editBtn=document.createElement('button');editBtn.className='btn btn-warning btn-sm';editBtn.textContent='Edit';
+    const confirmBtn=document.createElement('button');confirmBtn.className='btn btn-success btn-sm hidden';confirmBtn.textContent='Save';
+    const cancelBtn=document.createElement('button');cancelBtn.className='btn btn-secondary btn-sm hidden';cancelBtn.textContent='Cancel';
+
+    editBtn.onclick=()=>{
+      // unlock all fields
+      dateSpan.classList.add('hidden');dateInput.classList.remove('hidden');
+      nameSpan.classList.add('hidden');nameSelect.classList.remove('hidden');
+      siteSpan.classList.add('hidden');siteSel.classList.remove('hidden');
+      mealSel.disabled=false;paidSel.disabled=false;
+      editBtn.classList.add('hidden');confirmBtn.classList.remove('hidden');cancelBtn.classList.remove('hidden');
+    };
+
+    confirmBtn.onclick=async()=>{
+      confirmBtn.innerHTML='<span class="spinner"></span>';
+      try{
+        await apiPost({
+          action:'updateFullRow',
+          rowIndex:row[0],
+          date:dateInput.value,
+          name:nameSelect.value,
+          site:siteSel.value,
+          meal:mealSel.value,
+          paidBy:paidSel.value
+        });
+        // update display
+        dateSpan.innerText=formatDate(dateInput.value);
+        daySpan.innerText=getDayName(dateInput.value);
+        nameSpan.innerText=nameSelect.value;
+        siteSpan.innerText=siteSel.value;
+        // lock all fields
+        dateSpan.classList.remove('hidden');dateInput.classList.add('hidden');
+        nameSpan.classList.remove('hidden');nameSelect.classList.add('hidden');
+        siteSpan.classList.remove('hidden');siteSel.classList.add('hidden');
+        mealSel.disabled=true;paidSel.disabled=true;
+        confirmBtn.classList.add('hidden');cancelBtn.classList.add('hidden');editBtn.classList.remove('hidden');
+        confirmBtn.textContent='Save';
+        // update local cache
+        const idx=allAdminData.findIndex(r=>r[0]===row[0]);
+        if(idx>-1){
+          allAdminData[idx][2]=dateInput.value;
+          allAdminData[idx][3]=nameSelect.value;
+          allAdminData[idx][4]=siteSel.value;
+          allAdminData[idx][5]=mealSel.value;
+          allAdminData[idx][6]=paidSel.value;
+        }
+        cs(CK.ts_att,0);renderMealSummary();
+        showToast('Record updated!','success');
+      }catch(e){showToast('Error updating.','error');confirmBtn.textContent='Save';}
+    };
+
+    cancelBtn.onclick=()=>{
+      dateInput.value=toInputDate(row[2]);
+      nameSelect.value=row[3];siteSel.value=row[4];
+      mealSel.value=row[5]||'';paidSel.value=row[6]||'';
+      dateSpan.classList.remove('hidden');dateInput.classList.add('hidden');
+      nameSpan.classList.remove('hidden');nameSelect.classList.add('hidden');
+      siteSpan.classList.remove('hidden');siteSel.classList.add('hidden');
+      mealSel.disabled=true;paidSel.disabled=true;
+      confirmBtn.classList.add('hidden');cancelBtn.classList.add('hidden');editBtn.classList.remove('hidden');
+    };
+
+    const editWrap=document.createElement('div');editWrap.className='action-btns';
+    editWrap.appendChild(editBtn);editWrap.appendChild(confirmBtn);editWrap.appendChild(cancelBtn);
+    tdEdit.appendChild(editWrap);tr.appendChild(tdEdit);
+
+    // ── DELETE COLUMN ──
+    const tdDel=document.createElement('td');
+    const delBtn=document.createElement('button');delBtn.className='btn btn-danger btn-sm';delBtn.textContent='Delete';
+    delBtn.onclick=async()=>{
+      if(!confirm('Delete this attendance record?'))return;
+      delBtn.innerHTML='<span class="spinner"></span>';
+      try{
+        await apiPost({action:'deleteAttendance',rowIndex:row[0]});
+        showToast('Record deleted.','info');
+        cs(CK.ts_att,0);
+        loadAttendanceTable(true);loadAdminAttendanceTable(true);
+      }catch(e){showToast('Error deleting.','error');delBtn.textContent='Delete';}
+    };
+    tdDel.appendChild(delBtn);tr.appendChild(tdDel);
+
+    tbody.appendChild(tr);
+  });
+}
+
+// ════════════════════════════════════════
+//  LOGIN / LOGOUT
+// ════════════════════════════════════════
+async function doLogin(){
+  const u=document.getElementById('login-user').value.trim();
+  const p=document.getElementById('login-pass').value;
+  if(!u||!p){showToast('Enter username & password.','error');return;}
+  const btn=document.getElementById('loginBtn');
+  btn.innerHTML='<span class="spinner"></span> Verifying...';btn.disabled=true;
+  try{
+    const res=await apiGet({action:'adminLogin',username:u,password:p});
+    if(res===true||res==='true'){
+      isAdmin=true;
+      document.getElementById('loginTabBtn').classList.add('hidden');
+      document.getElementById('adminTabBtn').classList.remove('hidden');
+      showPage('admin');loadEmployees(false);loadSites(false);
+      showToast('Welcome, Admin!','success');
+    }else{showToast('Invalid credentials.','error');}
+  }catch(e){showToast('Error connecting.','error');}
+  btn.innerHTML='Login';btn.disabled=false;
+}
+function doLogout(){
+  isAdmin=false;
+  document.getElementById('loginTabBtn').classList.remove('hidden');
+  document.getElementById('adminTabBtn').classList.add('hidden');
+  document.getElementById('login-user').value='';
+  document.getElementById('login-pass').value='';
+  showPage('attendance');showToast('Logged out.','info');
+}
+
+// ════════════════════════════════════════
+//  EMPLOYEE / SITE MANAGEMENT
+// ════════════════════════════════════════
+async function addEmployee(){
+  const name=document.getElementById('new-emp').value.trim();
+  if(!name){showToast('Enter employee name.','error');return;}
+  try{await apiPost({action:'addEmployee',name});document.getElementById('new-emp').value='';cs(CK.ts_emp,0);loadEmployees(true);showToast('Employee added!','success');}
+  catch(e){showToast('Error adding employee.','error');}
+}
+async function deleteEmployee(name){
+  if(!confirm(`Remove "${name}"?`))return;
+  try{await apiPost({action:'deleteEmployee',name});cs(CK.ts_emp,0);loadEmployees(true);showToast('Removed.','info');}
+  catch(e){showToast('Error removing.','error');}
+}
+async function addSite(){
+  const name=document.getElementById('new-site').value.trim();
+  if(!name){showToast('Enter site name.','error');return;}
+  try{await apiPost({action:'addSite',name});document.getElementById('new-site').value='';cs(CK.ts_site,0);loadSites(true);showToast('Site added!','success');}
+  catch(e){showToast('Error adding site.','error');}
+}
+async function deleteSite(name){
+  if(!confirm(`Remove "${name}"?`))return;
+  try{await apiPost({action:'deleteSite',name});cs(CK.ts_site,0);loadSites(true);showToast('Removed.','info');}
+  catch(e){showToast('Error removing.','error');}
+}
+
+// ════════════════════════════════════════
+//  TOAST
+// ════════════════════════════════════════
+let toastTimer;
+function showToast(msg,type='info'){
+  const el=document.getElementById('toast');clearTimeout(toastTimer);
+  el.textContent=msg;el.className=`show ${type}`;
+  toastTimer=setTimeout(()=>{el.className='';},3000);
+}
+</script>
+</body>
+</html>
