@@ -366,7 +366,7 @@
 // ════════════════════════════════════════
 //  PASTE YOUR APPS SCRIPT URL HERE
 // ════════════════════════════════════════
-const API = 'https://script.google.com/macros/s/AKfycbyeZvthC0e9O6MMHUpXC9pLovrxSoN_F2WoEMZms8yC2wVGGg3nU7H7pTVOoq9iFkpW/exec';
+const API = 'https://script.google.com/macros/s/AKfycbyoodabnk7-Rbw5MqK5HBq7YBqEX-q_DuZaj4Oribj_dZ9xmaaKWkCPOAKhb10nLWeX/exec';
 
 // ════════════════════════════════════════
 //  API HELPERS
@@ -378,11 +378,9 @@ async function apiGet(params) {
   return res.json();
 }
 async function apiPost(data) {
-  const res = await fetch(API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
+  const url = new URL(API);
+  Object.entries(data).forEach(([k,v]) => url.searchParams.set(k, v));
+  const res = await fetch(url.toString());
   return res.json();
 }
 
