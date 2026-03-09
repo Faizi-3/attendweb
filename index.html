@@ -102,7 +102,7 @@
   table{width:100%;border-collapse:collapse;font-size:0.85rem;min-width:400px;}
   thead tr{background:linear-gradient(90deg,rgba(61,90,128,0.10) 0%,rgba(152,193,217,0.08) 100%);}
   thead th{padding:10px 11px;text-align:left;font-weight:700;font-size:0.70rem;letter-spacing:0.9px;text-transform:uppercase;color:var(--text-light);white-space:nowrap;border-bottom:2px solid rgba(61,90,128,0.12);}
-  tbody tr{transition:backgroundvar(--transition);border-bottom:1px solid rgba(61,90,128,0.07);}
+  tbody tr{transition:background var(--transition);border-bottom:1px solid rgba(61,90,128,0.07);}
   tbody tr:nth-child(even){background:var(--row-even);}
   tbody tr:hover{background:var(--row-hover) !important;}
   tbody td{padding:9px 11px;vertical-align:middle;color:var(--text);}
@@ -116,7 +116,6 @@
   .badge-day{background:rgba(152,193,217,0.22);color:#2a4a6b;font-size:0.68rem;}
   body.dark .badge-day{background:rgba(61,90,128,0.35);color:#98c1d9;}
 
-  /* action column buttons */
   .action-btns{display:flex;gap:4px;flex-wrap:nowrap;align-items:center;}
 
   /* MEAL SUMMARY */
@@ -174,12 +173,13 @@
 
   .divider{height:1px;background:linear-gradient(90deg,transparent,rgba(61,90,128,0.15),transparent);margin:20px 0;}
 
-  #toast{position:fixed;bottom:18px;right:16px;left:16px;max-width:300px;margin:0 auto;padding:11px 18px;border-radius:12px;font-weight:600;font-size:0.84rem;color:#fff;z-index:9999;opacity:0;transform:translateY(14px);transition:all 0.3s cubic-bezier(.4,0,.2,1);pointer-events:none;text-align:center;}
-  @media(min-width:480px){#toast{left:auto;max-width:270px;}}
+  #toast{position:fixed;bottom:18px;right:16px;left:16px;max-width:320px;margin:0 auto;padding:11px 18px;border-radius:12px;font-weight:600;font-size:0.84rem;color:#fff;z-index:9999;opacity:0;transform:translateY(14px);transition:all 0.3s cubic-bezier(.4,0,.2,1);pointer-events:none;text-align:center;}
+  @media(min-width:480px){#toast{left:auto;max-width:300px;}}
   #toast.show{opacity:1;transform:translateY(0);}
   #toast.success{background:linear-gradient(135deg,#3d5a80,#293241);}
   #toast.error{background:linear-gradient(135deg,#ee6c4d,#e05a3a);}
   #toast.info{background:linear-gradient(135deg,#98c1d9,#3d5a80);}
+  #toast.warning{background:linear-gradient(135deg,#f6ad55,#ed8936);}
 
   .spinner{display:inline-block;width:13px;height:13px;border:2.5px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;}
 
@@ -237,8 +237,20 @@
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>#</th><th>Date</th><th>Day</th><th>Name</th><th>Site</th></tr></thead>
-          <tbody id="att-tbody"><tr><td colspan="5" class="empty-state"><span class="spinner"></span> Loading...</td></tr></tbody>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Date</th>
+              <th>Day</th>
+              <th>Name</th>
+              <th>Site</th>
+              <th>Edit</th>
+              <th>Delete</th>
+            </tr>
+          </thead>
+          <tbody id="att-tbody">
+            <tr><td colspan="7" class="empty-state"><span class="spinner"></span> Loading...</td></tr>
+          </tbody>
         </table>
       </div>
     </div>
@@ -281,15 +293,8 @@
         <table>
           <thead>
             <tr>
-              <th>#</th>
-              <th>Date</th>
-              <th>Day</th>
-              <th>Name</th>
-              <th>Site</th>
-              <th>Meal</th>
-              <th>Paid By</th>
-              <th>Edit</th>
-              <th>Delete</th>
+              <th>#</th><th>Date</th><th>Day</th><th>Name</th><th>Site</th>
+              <th>Meal</th><th>Paid By</th><th>Edit</th><th>Delete</th>
             </tr>
           </thead>
           <tbody id="admin-tbody">
@@ -508,14 +513,14 @@ async function loadAttendanceTable(force){
   const tbody=document.getElementById('att-tbody');
   const c=cg(CK.att);
   if(!force&&c&&fresh(CK.ts_att)){allAttData=c;applyFilters();updateCacheBar('att-cache-bar','att-cache-dot','att-cache-label',CK.ts_att);return;}
-  tbody.innerHTML='<tr><td colspan="5" class="empty-state"><span class="spinner"></span> Loading...</td></tr>';
+  tbody.innerHTML='<tr><td colspan="7" class="empty-state"><span class="spinner"></span> Loading...</td></tr>';
   try{
     const data=await apiGet({action:'getAttendanceWithRowIndex'});
     cs(CK.att,data);cs(CK.ts_att,Date.now());
     allAttData=data||[];applyFilters();
     updateCacheBar('att-cache-bar','att-cache-dot','att-cache-label',CK.ts_att);
   }catch(e){
-    tbody.innerHTML='<tr><td colspan="5" class="empty-state" style="color:#ee6c4d">Error loading data. Check your API URL.</td></tr>';
+    tbody.innerHTML='<tr><td colspan="7" class="empty-state" style="color:#ee6c4d">Error loading data. Check your API URL.</td></tr>';
   }
 }
 function refreshAttendance(){cs(CK.ts_att,0);loadAttendanceTable(true);showToast('Refreshing...','info');}
@@ -533,18 +538,124 @@ function applyFilters(){
   document.getElementById('att-total-num').textContent=f.length;
 }
 function clearFilters(){document.getElementById('f-name').value='';document.getElementById('f-site').value='';document.getElementById('f-date').value='';applyFilters();}
+
+// ════════════════════════════════════════
+//  RENDER PUBLIC ATTENDANCE TABLE
+//  Columns: # | Date | Day | Name | Site | Edit | Delete
+// ════════════════════════════════════════
 function renderAttTable(data){
+  const employees=cg(CK.emp)||[], sites=cg(CK.sites)||[];
   const tbody=document.getElementById('att-tbody');tbody.innerHTML='';
-  if(!data||data.length===0){tbody.innerHTML='<tr><td colspan="5" class="empty-state">No records found.</td></tr>';return;}
+  if(!data||data.length===0){tbody.innerHTML='<tr><td colspan="7" class="empty-state">No records found.</td></tr>';return;}
+
   data.forEach((row,i)=>{
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${i+1}</td><td>${formatDate(row[2])}</td><td><span class="badge badge-day">${getDayName(row[2])}</span></td><td>${row[3]}</td><td>${row[4]}</td>`;
+
+    // # serial
+    const tdNum=document.createElement('td');tdNum.innerText=i+1;tr.appendChild(tdNum);
+
+    // Date — span + hidden input
+    const tdDate=document.createElement('td');
+    const dateSpan=document.createElement('span');dateSpan.innerText=formatDate(row[2]);
+    const dateInput=document.createElement('input');dateInput.type='date';dateInput.className='hidden';dateInput.value=toInputDate(row[2]);
+    tdDate.appendChild(dateSpan);tdDate.appendChild(dateInput);tr.appendChild(tdDate);
+
+    // Day badge
+    const tdDay=document.createElement('td');
+    const daySpan=document.createElement('span');daySpan.className='badge badge-day';daySpan.innerText=getDayName(row[2]);
+    tdDay.appendChild(daySpan);tr.appendChild(tdDay);
+    dateInput.addEventListener('change',()=>{daySpan.innerText=getDayName(dateInput.value);});
+
+    // Name — span + hidden select
+    const tdName=document.createElement('td');
+    const nameSpan=document.createElement('span');nameSpan.innerText=row[3];
+    const nameSelect=document.createElement('select');nameSelect.className='hidden';
+    employees.forEach(e=>{const o=document.createElement('option');o.value=e;o.text=e;if(e===row[3])o.selected=true;nameSelect.add(o);});
+    tdName.appendChild(nameSpan);tdName.appendChild(nameSelect);tr.appendChild(tdName);
+
+    // Site — span + hidden select
+    const tdSite=document.createElement('td');
+    const siteSpan=document.createElement('span');siteSpan.innerText=row[4];
+    const siteSel=document.createElement('select');siteSel.className='hidden';
+    sites.forEach(s=>{const o=document.createElement('option');o.value=s;o.text=s;if(s===row[4])o.selected=true;siteSel.add(o);});
+    tdSite.appendChild(siteSpan);tdSite.appendChild(siteSel);tr.appendChild(tdSite);
+
+    // ── EDIT COLUMN ──
+    const tdEdit=document.createElement('td');
+    const editBtn=document.createElement('button');editBtn.className='btn btn-warning btn-sm';editBtn.textContent='Edit';
+    const saveBtn=document.createElement('button');saveBtn.className='btn btn-success btn-sm hidden';saveBtn.textContent='Save';
+    const cancelBtn=document.createElement('button');cancelBtn.className='btn btn-secondary btn-sm hidden';cancelBtn.textContent='Cancel';
+
+    editBtn.onclick=()=>{
+      dateSpan.classList.add('hidden');dateInput.classList.remove('hidden');
+      nameSpan.classList.add('hidden');nameSelect.classList.remove('hidden');
+      siteSpan.classList.add('hidden');siteSel.classList.remove('hidden');
+      editBtn.classList.add('hidden');saveBtn.classList.remove('hidden');cancelBtn.classList.remove('hidden');
+    };
+
+    saveBtn.onclick=async()=>{
+      saveBtn.innerHTML='<span class="spinner"></span>';
+      try{
+        await apiPost({
+          action:'updateFullRow',
+          rowIndex:row[0],
+          date:dateInput.value,
+          name:nameSelect.value,
+          site:siteSel.value,
+          meal:row[5]||'',
+          paidBy:row[6]||''
+        });
+        dateSpan.innerText=formatDate(dateInput.value);
+        daySpan.innerText=getDayName(dateInput.value);
+        nameSpan.innerText=nameSelect.value;
+        siteSpan.innerText=siteSel.value;
+        dateSpan.classList.remove('hidden');dateInput.classList.add('hidden');
+        nameSpan.classList.remove('hidden');nameSelect.classList.add('hidden');
+        siteSpan.classList.remove('hidden');siteSel.classList.add('hidden');
+        saveBtn.classList.add('hidden');cancelBtn.classList.add('hidden');editBtn.classList.remove('hidden');
+        saveBtn.textContent='Save';
+        // update local cache
+        const idx=allAttData.findIndex(r=>r[0]===row[0]);
+        if(idx>-1){allAttData[idx][2]=dateInput.value;allAttData[idx][3]=nameSelect.value;allAttData[idx][4]=siteSel.value;}
+        cs(CK.ts_att,0);
+        showToast('Record updated!','success');
+      }catch(e){showToast('Error updating.','error');saveBtn.textContent='Save';}
+    };
+
+    cancelBtn.onclick=()=>{
+      dateInput.value=toInputDate(row[2]);nameSelect.value=row[3];siteSel.value=row[4];
+      dateSpan.classList.remove('hidden');dateInput.classList.add('hidden');
+      nameSpan.classList.remove('hidden');nameSelect.classList.add('hidden');
+      siteSpan.classList.remove('hidden');siteSel.classList.add('hidden');
+      saveBtn.classList.add('hidden');cancelBtn.classList.add('hidden');editBtn.classList.remove('hidden');
+    };
+
+    const editWrap=document.createElement('div');editWrap.className='action-btns';
+    editWrap.appendChild(editBtn);editWrap.appendChild(saveBtn);editWrap.appendChild(cancelBtn);
+    tdEdit.appendChild(editWrap);tr.appendChild(tdEdit);
+
+    // ── DELETE COLUMN ──
+    const tdDel=document.createElement('td');
+    const delBtn=document.createElement('button');delBtn.className='btn btn-danger btn-sm';delBtn.textContent='Delete';
+    delBtn.onclick=async()=>{
+      if(!confirm('Delete this attendance record?'))return;
+      delBtn.innerHTML='<span class="spinner"></span>';
+      try{
+        await apiPost({action:'deleteAttendance',rowIndex:row[0]});
+        showToast('Record deleted.','info');
+        cs(CK.ts_att,0);
+        loadAttendanceTable(true);
+        if(isAdmin)loadAdminAttendanceTable(true);
+      }catch(e){showToast('Error deleting.','error');delBtn.textContent='Delete';}
+    };
+    tdDel.appendChild(delBtn);tr.appendChild(tdDel);
+
     tbody.appendChild(tr);
   });
 }
 
 // ════════════════════════════════════════
-//  MARK ATTENDANCE
+//  MARK ATTENDANCE (with duplicate check)
 // ════════════════════════════════════════
 async function markAttendance(){
   const name=document.getElementById('att-employee').value;
@@ -553,13 +664,19 @@ async function markAttendance(){
   if(!name){showToast('Please select an employee.','error');return;}
   if(!site){showToast('Please select a site.','error');return;}
   if(!date){showToast('Please pick a date.','error');return;}
+
   const btn=document.getElementById('markBtn');
   btn.innerHTML='<span class="spinner"></span> Saving...';btn.disabled=true;
   try{
-    await apiPost({action:'markAttendance',name,site,date});
-    showToast('Attendance marked!','success');
-    cs(CK.ts_att,0);loadAttendanceTable(true);
-    if(isAdmin)loadAdminAttendanceTable(true);
+    const res=await apiPost({action:'markAttendance',name,site,date});
+    if(res && res.duplicate){
+      showToast(res.message,'warning');
+    } else {
+      showToast('Attendance marked!','success');
+      cs(CK.ts_att,0);
+      loadAttendanceTable(true);
+      if(isAdmin)loadAdminAttendanceTable(true);
+    }
   }catch(e){showToast('Error saving attendance.','error');}
   btn.innerHTML='Mark Attendance';btn.disabled=false;
 }
@@ -668,43 +785,36 @@ function buildAdminTable(data){
   data.forEach((row,i)=>{
     const tr=document.createElement('tr');
 
-    // # serial
     const tdNum=document.createElement('td');tdNum.innerText=i+1;tr.appendChild(tdNum);
 
-    // Date — display span + hidden input
     const tdDate=document.createElement('td');
     const dateSpan=document.createElement('span');dateSpan.innerText=formatDate(row[2]);
     const dateInput=document.createElement('input');dateInput.type='date';dateInput.className='hidden';dateInput.value=toInputDate(row[2]);
     tdDate.appendChild(dateSpan);tdDate.appendChild(dateInput);tr.appendChild(tdDate);
 
-    // Day badge
     const tdDay=document.createElement('td');
     const daySpan=document.createElement('span');daySpan.className='badge badge-day';daySpan.innerText=getDayName(row[2]);
     tdDay.appendChild(daySpan);tr.appendChild(tdDay);
     dateInput.addEventListener('change',()=>{daySpan.innerText=getDayName(dateInput.value);});
 
-    // Name — span + hidden select
     const tdName=document.createElement('td');
     const nameSpan=document.createElement('span');nameSpan.innerText=row[3];
     const nameSelect=document.createElement('select');nameSelect.className='hidden';
     employees.forEach(e=>{const o=document.createElement('option');o.value=e;o.text=e;if(e===row[3])o.selected=true;nameSelect.add(o);});
     tdName.appendChild(nameSpan);tdName.appendChild(nameSelect);tr.appendChild(tdName);
 
-    // Site — span + hidden select
     const tdSite=document.createElement('td');
     const siteSpan=document.createElement('span');siteSpan.innerText=row[4];
     const siteSel=document.createElement('select');siteSel.className='hidden';
     sites.forEach(s=>{const o=document.createElement('option');o.value=s;o.text=s;if(s===row[4])o.selected=true;siteSel.add(o);});
     tdSite.appendChild(siteSpan);tdSite.appendChild(siteSel);tr.appendChild(tdSite);
 
-    // Meal
     const tdMeal=document.createElement('td');
     const mealSel=document.createElement('select');mealSel.disabled=true;
     [{v:'',t:'--'},{v:'Yes',t:'Yes'},{v:'No',t:'No'}].forEach(({v,t})=>{const o=document.createElement('option');o.value=v;o.text=t;if(v===row[5])o.selected=true;mealSel.add(o);});
     if(!row[5])mealSel.value='';
     tdMeal.appendChild(mealSel);tr.appendChild(tdMeal);
 
-    // Paid By
     const tdPaid=document.createElement('td');
     const paidSel=document.createElement('select');paidSel.disabled=true;
     [{v:'',t:'--'},{v:'Nadeem',t:'Nadeem'},{v:'Shakeel',t:'Shakeel'}].forEach(({v,t})=>{const o=document.createElement('option');o.value=v;o.text=t;if(v===row[6])o.selected=true;paidSel.add(o);});
@@ -723,7 +833,6 @@ function buildAdminTable(data){
     const cancelBtn=document.createElement('button');cancelBtn.className='btn btn-secondary btn-sm hidden';cancelBtn.textContent='Cancel';
 
     editBtn.onclick=()=>{
-      // unlock all fields
       dateSpan.classList.add('hidden');dateInput.classList.remove('hidden');
       nameSpan.classList.add('hidden');nameSelect.classList.remove('hidden');
       siteSpan.classList.add('hidden');siteSel.classList.remove('hidden');
@@ -734,44 +843,24 @@ function buildAdminTable(data){
     confirmBtn.onclick=async()=>{
       confirmBtn.innerHTML='<span class="spinner"></span>';
       try{
-        await apiPost({
-          action:'updateFullRow',
-          rowIndex:row[0],
-          date:dateInput.value,
-          name:nameSelect.value,
-          site:siteSel.value,
-          meal:mealSel.value,
-          paidBy:paidSel.value
-        });
-        // update display
-        dateSpan.innerText=formatDate(dateInput.value);
-        daySpan.innerText=getDayName(dateInput.value);
-        nameSpan.innerText=nameSelect.value;
-        siteSpan.innerText=siteSel.value;
-        // lock all fields
+        await apiPost({action:'updateFullRow',rowIndex:row[0],date:dateInput.value,name:nameSelect.value,site:siteSel.value,meal:mealSel.value,paidBy:paidSel.value});
+        dateSpan.innerText=formatDate(dateInput.value);daySpan.innerText=getDayName(dateInput.value);
+        nameSpan.innerText=nameSelect.value;siteSpan.innerText=siteSel.value;
         dateSpan.classList.remove('hidden');dateInput.classList.add('hidden');
         nameSpan.classList.remove('hidden');nameSelect.classList.add('hidden');
         siteSpan.classList.remove('hidden');siteSel.classList.add('hidden');
         mealSel.disabled=true;paidSel.disabled=true;
         confirmBtn.classList.add('hidden');cancelBtn.classList.add('hidden');editBtn.classList.remove('hidden');
         confirmBtn.textContent='Save';
-        // update local cache
         const idx=allAdminData.findIndex(r=>r[0]===row[0]);
-        if(idx>-1){
-          allAdminData[idx][2]=dateInput.value;
-          allAdminData[idx][3]=nameSelect.value;
-          allAdminData[idx][4]=siteSel.value;
-          allAdminData[idx][5]=mealSel.value;
-          allAdminData[idx][6]=paidSel.value;
-        }
+        if(idx>-1){allAdminData[idx][2]=dateInput.value;allAdminData[idx][3]=nameSelect.value;allAdminData[idx][4]=siteSel.value;allAdminData[idx][5]=mealSel.value;allAdminData[idx][6]=paidSel.value;}
         cs(CK.ts_att,0);renderMealSummary();
         showToast('Record updated!','success');
       }catch(e){showToast('Error updating.','error');confirmBtn.textContent='Save';}
     };
 
     cancelBtn.onclick=()=>{
-      dateInput.value=toInputDate(row[2]);
-      nameSelect.value=row[3];siteSel.value=row[4];
+      dateInput.value=toInputDate(row[2]);nameSelect.value=row[3];siteSel.value=row[4];
       mealSel.value=row[5]||'';paidSel.value=row[6]||'';
       dateSpan.classList.remove('hidden');dateInput.classList.add('hidden');
       nameSpan.classList.remove('hidden');nameSelect.classList.add('hidden');
@@ -866,7 +955,7 @@ let toastTimer;
 function showToast(msg,type='info'){
   const el=document.getElementById('toast');clearTimeout(toastTimer);
   el.textContent=msg;el.className=`show ${type}`;
-  toastTimer=setTimeout(()=>{el.className='';},3000);
+  toastTimer=setTimeout(()=>{el.className='';},3500);
 }
 </script>
 </body>
