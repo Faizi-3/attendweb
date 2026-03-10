@@ -841,11 +841,29 @@ const DAYS  = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Satu
 const MONTHS= ['January','February','March','April','May','June','July','August','September','October','November','December'];
 let isAdmin=false, attData=[], adminData=[];
 
-const fmtD  = v => { if(!v) return ''; const d=new Date(v); if(isNaN(d)) return v; return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`; };
-const dayN  = v => { if(!v) return ''; const d=new Date(v); return isNaN(d)?'':DAYS[d.getDay()]; };
-const toInp = v => { if(!v) return ''; const d=new Date(v); return isNaN(d)?'':d.toISOString().split('T')[0]; };
+const fmtD  = v => { if(!v) return ''; const d=normDate(v); if(!d) return String(v); const[yr,mo,dy]=d.split('-'); return `${dy}/${mo}/${yr}`; };
+const dayN  = v => { if(!v) return ''; const d=normDate(v); if(!d) return ''; const dt=new Date(d+'T00:00:00'); return isNaN(dt)?'':DAYS[dt.getDay()]; };
+const toInp = v => normDate(v);
 const today = () => new Date().toISOString().split('T')[0];
-const ymOf  = v => { if(!v) return ''; const d=new Date(v); return isNaN(d)?'':`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
+const ymOf  = v => { const d=normDate(v); return d?d.slice(0,7):''; };
+
+// Robust date normaliser — handles all formats Google Sheets returns:
+//   "2025-03-10", "10/03/2025", "Mon Mar 10 2025 ...", Date objects, timestamps
+function normDate(v){
+  if(!v) return '';
+  // Already YYYY-MM-DD
+  if(typeof v==='string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  // DD/MM/YYYY
+  if(typeof v==='string' && /^\d{2}\/\d{2}\/\d{4}$/.test(v)){
+    const[dy,mo,yr]=v.split('/'); return `${yr}-${mo}-${dy}`;
+  }
+  // Try native parse but correct for timezone by using UTC parts
+  const d = new Date(v);
+  if(isNaN(d)) return '';
+  const yr=d.getFullYear(), mo=String(d.getMonth()+1).padStart(2,'0'), dy=String(d.getDate()).padStart(2,'0');
+  // If time is midnight UTC it could be off by one — use local date instead
+  return `${yr}-${mo}-${dy}`;
+}
 
 /* ══════════════════════════════════════════
    DARK MODE
@@ -1130,16 +1148,26 @@ async function markAttendance(){
   if(!site){ showToast('Please select a site.','error'); return; }
   if(!date){ showToast('Please pick a date.','error'); return; }
 
+  const btn=document.getElementById('markBtn');
+  btn.innerHTML='<span class="sp"></span> Checking…'; btn.disabled=true;
+
+  // ── Always fetch latest data so duplicate check is never stale ──
+  try{
+    const fresh = await req({action:'getAttendanceWithRowIndex'});
+    attData = fresh || [];
+    ss(K.att, attData); ss(K.ta, Date.now());
+  }catch(e){ /* proceed anyway — server check will catch it */ }
+
   // ── CLIENT-SIDE CHECK (name + site + date all three must match) ──
   if(checkDuplicate(name, site, date)){
     showDup(`${name} is already marked at "${site}" on ${fmtD(date)}.`);
     showToast('Duplicate entry blocked!','warning');
+    btn.innerHTML='Mark Attendance'; btn.disabled=false;
     return;
   }
 
   clearDup();
-  const btn=document.getElementById('markBtn');
-  btn.innerHTML='<span class="sp"></span> Saving…'; btn.disabled=true;
+  btn.innerHTML='<span class="sp"></span> Saving…';
   try{
     // ── SERVER-SIDE safety net ──
     const res=await req({action:'markAttendance',name,site,date});
