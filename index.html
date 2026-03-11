@@ -560,6 +560,8 @@ body.dark .meal-card.s { background:linear-gradient(135deg,rgba(238,108,77,.2),r
   font-family:'Playfair Display',serif; font-size:.95rem;
   font-weight:700; color:var(--coral);
 }
+.balance-positive { color: #38a169; } /* green */
+.balance-negative { color: #e53e3e; } /* red */
 .pay-summary-bar {
   background:linear-gradient(135deg,rgba(61,90,128,.1),rgba(152,193,217,.07));
   border:1px solid var(--border); border-radius:var(--rs);
@@ -906,10 +908,10 @@ tbody td input.ext-inp-wide { min-width:140px; }
             <div class="table-wrap">
               <table>
                 <thead>
-                  <tr><th>#</th><th>Date</th><th>Employee</th><th>Description</th><th>Amount (Rs)</th><th>Delete</th></tr>
+                  <tr><th>#</th><th>Date</th><th>Employee</th><th>Description</th><th>Type</th><th>Amount (Rs)</th><th>Delete</th></tr>
                 </thead>
                 <tbody id="ext-tbody">
-                  <tr><td colspan="6" class="empty-state">No extras added yet. Click "+ Add Entry".</td></tr>
+                  <tr><td colspan="7" class="empty-state">No extras added yet. Click "+ Add Entry".</td></tr>
                 </tbody>
               </table>
             </div>
@@ -939,16 +941,38 @@ tbody td input.ext-inp-wide { min-width:140px; }
                 <select id="sp-month" onchange="renderSitePay()"><option value="">All Months</option></select>
               </div>
             </div>
-            <div class="table-wrap">
+
+            <div class="table-wrap" style="margin-bottom:18px;">
               <table>
                 <thead>
-                  <tr><th>#</th><th>Site</th><th>Total Days Worked</th><th>Employees</th><th>Est. Labour Cost (Rs)</th></tr>
+                  <tr><th>#</th><th>Site</th><th>Total Days Worked</th><th>Employees</th><th>Labour Cost (Rs)</th><th>Received (Rs)</th><th>Balance (Rs)</th></tr>
                 </thead>
                 <tbody id="sp-tbody">
-                  <tr><td colspan="5" class="empty-state">Select a month to view site payments.</td></tr>
+                  <tr><td colspan="7" class="empty-state">Select a month to view site payments.</td></tr>
                 </tbody>
               </table>
             </div>
+
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+              <div class="sec-title" style="margin-bottom:0">Site Owner Payments Received</div>
+              <button class="btn btn-green btn-sm" onclick="addSitePaymentRow()">+ Add Payment</button>
+            </div>
+            <div class="filter-bar" style="margin-bottom:12px;">
+              <div class="fg" style="flex:1;min-width:220px;"><label>Search Site</label><input type="text" id="spay-search" placeholder="Search site…" oninput="renderSitePayments()"></div>
+              <div class="fg" style="min-width:160px;"><label>Filter Month</label><select id="spay-month" onchange="renderSitePayments()"><option value="">All Months</option></select></div>
+              <button class="btn btn-ghost btn-sm f-clear" onclick="clearSitePayFilters()">Clear</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>#</th><th>Date</th><th>Site</th><th>Description</th><th>Amount (Rs)</th><th>Edit</th><th>Delete</th></tr>
+                </thead>
+                <tbody id="spay-tbody">
+                  <tr><td colspan="7" class="empty-state">No payments recorded yet. Add one.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="pay-total-row" id="spay-total" style="display:none"></div>
           </div>
 
         </div><!-- /card -->
@@ -963,7 +987,7 @@ tbody td input.ext-inp-wide { min-width:140px; }
 /* ══════════════════════════════════════════
    CONFIG
 ══════════════════════════════════════════ */
-const API = 'https://script.google.com/macros/s/AKfycbzrGZvk17S4O-HNjLuQQMzfaUefKtZCQwYyZAz7E-BILHJyO_0xEPFMeMlmuWcGCaPs/exec';
+const API = 'https://script.google.com/macros/s/AKfycbzNpAOEFAnsYy1FdYhJjdmWIUW2vt1uDSAkS-R7vXBmz37ZGrxS5rmnoNZskTg2gl4N/exec';
 
 /* ══════════════════════════════════════════
    API
@@ -1083,7 +1107,10 @@ function showSub(name){
   if(name==='empinfo')  loadAndShowSalary();
   if(name==='extras')   renderExtras();
   if(name==='emppay')   renderEmpPay();
-  if(name==='sitepay')  renderSitePay();
+  if(name==='sitepay'){
+    renderSitePay();
+    renderSitePayments();
+  }
 }
 
 
@@ -1362,6 +1389,9 @@ async function loadAdminAtt(force){
     updCacheBar('adm-cbar','adm-cdot','adm-clbl',K.ta);
     populatePayMonths();
     if(document.getElementById('sub-empinfo').classList.contains('active')) buildSalaryTable();
+    if(document.getElementById('sub-sitepay').classList.contains('active')){
+      renderSitePay(); renderSitePayments();
+    }
     return;
   }
   tbody.innerHTML='<tr><td colspan="9" class="empty-state"><span class="sp"></span> Loading…</td></tr>';
@@ -1376,9 +1406,25 @@ async function loadAdminAtt(force){
     applyAdminFilters(); renderCounts(adminData);
     populateMealMonths(adminData); populateMonths(adminData,'af-month');
     renderEmps(emps); renderSites(sites); fillSiteSels(sites);
+
+    // Load persisted pay rates, extras, & site payments from the backend (if available)
+    try{
+      const [payRates, extras, sitePayments] = await Promise.all([
+        req({action:'getPayRates'}),
+        req({action:'getExtras'}),
+        req({action:'getSitePayments'})
+      ]);
+      ls(PK.rates, payRates||{});
+      ss(PK.extras, extras||[]);
+      ss(PK.sitePay, sitePayments||[]);
+    }catch(_){ }
+
     updCacheBar('adm-cbar','adm-cdot','adm-clbl',K.ta);
     populatePayMonths();
     if(document.getElementById('sub-empinfo').classList.contains('active')) buildSalaryTable();
+    if(document.getElementById('sub-sitepay').classList.contains('active')){
+      renderSitePay(); renderSitePayments();
+    }
   }catch(e){
     tbody.innerHTML='<tr><td colspan="9" class="empty-state" style="color:var(--coral)">Error loading data.</td></tr>';
   }
@@ -1640,26 +1686,37 @@ function showToast(msg, type='info'){
    payRates: { empName: { ppd: number, mpd: number } }
    extras:   [ { date, emp, desc, amount } ]
 ══════════════════════════════════════════ */
-const PK = { rates:'at_payrates', extras:'at_extras' }; // PR: pay rates are persisted in localStorage so they survive refresh
+const PK = { rates:'at_payrates', extras:'at_extras', sitePay:'at_site_payments' }; // PR: pay rates are persisted in localStorage so they survive refresh
 const ls = (k,v)=>{ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
 const lg = k=>{ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):null; }catch(e){return null;} };
 const getPayRates = () => lg(PK.rates) || {};
 const getExtras   = () => sg(PK.extras) || [];
+const getSitePayments = () => sg(PK.sitePay) || [];
 function savePayRate(emp, field, val){
   const r = getPayRates();
   if(!r[emp]) r[emp] = { ppd:0, mpd:0 };
   r[emp][field] = parseFloat(val)||0;
   ls(PK.rates, r);
 
-  // Attempt to persist per-employee pay rates back to the Google Sheet.
-  // NOTE: This requires a matching server-side action (e.g. "savePayRate")
-  // in the Apps Script backend. If it doesn't exist, this will fail silently.
   (async () => {
     try{ await req({action:'savePayRate', employee:emp, field, value:r[emp][field]}); }
     catch(e){}
   })();
 }
-function saveExtras(arr){ ss(PK.extras, arr); }
+
+async function saveExtras(arr){
+  ss(PK.extras, arr);
+  try{
+    await req({action:'syncExtras', extras: JSON.stringify(arr)});
+  }catch(e){ }
+}
+
+async function saveSitePayments(arr){
+  ss(PK.sitePay, arr);
+  try{
+    await req({action:'syncSitePayments', payments: JSON.stringify(arr)});
+  }catch(e){ }
+}
 
 /* ══════════════════════════════════════════
    POPULATE PAYMENT MONTH SELECTORS
@@ -1667,6 +1724,11 @@ function saveExtras(arr){ ss(PK.extras, arr); }
 ══════════════════════════════════════════ */
 function populatePayMonths(){
   ['epi-month','ep-month','sp-month','ext-month'].forEach(id => populateMonths(adminData, id));
+
+  // Site payments may have months that aren't in attendance data (e.g. advance payments)
+  const sitePayMonths = (getSitePayments()||[]).map(p=>p.date).filter(Boolean);
+  const sitePayData = sitePayMonths.map(d=>[null,null,d]);
+  populateMonths(sitePayData, 'spay-month');
 }
 
 /* ══════════════════════════════════════════
@@ -1793,27 +1855,38 @@ function renderExtras(){
   const tbody = document.getElementById('ext-tbody');
   tbody.innerHTML='';
   if(!extras.length){
-    tbody.innerHTML='<tr><td colspan="6" class="empty-state">No extras for this period.</td></tr>';
+    tbody.innerHTML='<tr><td colspan="7" class="empty-state">No extras for this period.</td></tr>';
     document.getElementById('ext-total').style.display='none';
     return;
   }
   let total=0;
   extras.forEach((x,i)=>{
-    total += parseFloat(x.amount)||0;
+    const amt = parseFloat(x.amount)||0;
+    const dir = x.direction || 'to-employee';
+    const display = dir==='to-employee' ? `Paid to employee` : `Paid by employee`;
+    const signed = dir==='to-employee' ? amt : -amt;
+    total += signed;
+
     const tr=document.createElement('tr');
     mkTd(tr,i+1);
     mkTd(tr, x.date||'');
     mkTd(tr, x.emp||'');
     mkTd(tr, x.desc||'');
+    mkTd(tr, display);
     const ta=document.createElement('td');
-    ta.innerHTML=`<strong>Rs ${(parseFloat(x.amount)||0).toLocaleString()}</strong>`;
+    ta.innerHTML=`<strong>${signed>=0? 'Rs ':'- Rs '}${Math.abs(signed).toLocaleString()}</strong>`;
     tr.appendChild(ta);
+    const tdEdit=document.createElement('td');
+    const eb=document.createElement('button'); eb.className='btn btn-amber btn-xs'; eb.textContent='Edit';
+    eb.onclick=()=> addExtraRow(x, i);
+    tdEdit.appendChild(eb);
+    tr.appendChild(tdEdit);
     const tdDel=document.createElement('td');
     const db=document.createElement('button'); db.className='btn btn-coral btn-xs'; db.textContent='Delete';
     db.onclick=()=>{
       if(!confirm('Delete this entry?')) return;
-      const all=getExtras(); const idx=all.findIndex(e=>e.date===x.date&&e.emp===x.emp&&e.desc===x.desc&&e.amount===x.amount);
-      if(idx>-1){ all.splice(idx,1); saveExtras(all); }
+      const all=getExtras();
+      if(i>=0 && i<all.length){ all.splice(i,1); saveExtras(all); }
       renderExtras();
     };
     tdDel.appendChild(db); tr.appendChild(tdDel);
@@ -1824,50 +1897,181 @@ function renderExtras(){
   trow.innerHTML=`<span>Total Extras (${month||'All Time'})</span><strong>Rs ${total.toLocaleString()}</strong>`;
 }
 
-function addExtraRow(){
+function addExtraRow(entry, idx){
   const emps = sg(K.emp)||[];
-  // simple modal-like inline form at top of tbody
-  const tbody=document.getElementById('ext-tbody');
-  // Remove any existing add-row
-  const existing=tbody.querySelector('.add-extra-row');
-  if(existing){ existing.remove(); return; }
+  const tbody = document.getElementById('ext-tbody');
+  const existing = tbody.querySelector('.add-extra-row');
+  if(existing){ existing.remove(); if(!entry) return; }
 
-  const tr=document.createElement('tr'); tr.className='add-extra-row';
-  // Date
-  const tdDate=document.createElement('td');
-  const di=document.createElement('input'); di.type='date'; di.className='ext-inp'; di.value=today(); di.style.minWidth='110px';
+  const tr = document.createElement('tr');
+  tr.className = 'add-extra-row';
+
+  const td0 = document.createElement('td');
+  td0.textContent = entry ? 'Edit' : 'New';
+  tr.appendChild(td0);
+
+  const tdDate = document.createElement('td');
+  const di = document.createElement('input');
+  di.type='date'; di.className='ext-inp'; di.value=entry?.date||today(); di.style.minWidth='110px';
   tdDate.appendChild(di);
-  // Employee select
-  const tdEmp=document.createElement('td');
-  const es=document.createElement('select'); es.className='ext-inp'; es.style.minWidth='110px';
-  es.innerHTML='<option value="">Employee…</option>';
-  emps.forEach(e=>es.innerHTML+=`<option value="${e}">${e}</option>`);
-  tdEmp.appendChild(es);
-  // Description
+  tr.appendChild(tdDate);
+
+  const tdEmp = document.createElement('td');
+  const empSel = document.createElement('select');
+  empSel.className='ext-inp';
+  empSel.innerHTML='<option value="">Employee…</option>';
+  emps.forEach(e=>empSel.innerHTML+=`<option value="${e}">${e}</option>`);
+  empSel.value = entry?.emp||'';
+  tdEmp.appendChild(empSel);
+  tr.appendChild(tdEmp);
+
+  const tdDesc = document.createElement('td');
+  const desc = document.createElement('input');
+  desc.type='text'; desc.className='ext-inp ext-inp-wide'; desc.placeholder='Description…';
+  desc.value = entry?.desc||'';
+  tdDesc.appendChild(desc);
+  tr.appendChild(tdDesc);
+
+  const tdType = document.createElement('td');
+  const typeSel = document.createElement('select');
+  typeSel.className='ext-inp';
+  typeSel.innerHTML='<option value="to-employee">Paid to employee</option><option value="to-admin">Paid by employee</option>';
+  typeSel.value = entry?.direction||'to-employee';
+  tdType.appendChild(typeSel);
+  tr.appendChild(tdType);
+
+  const tdAmt = document.createElement('td');
+  const amt = document.createElement('input');
+  amt.type='number'; amt.className='ext-inp'; amt.placeholder='0'; amt.min='0';
+  amt.value = entry?.amount||'';
+  tdAmt.appendChild(amt);
+  tr.appendChild(tdAmt);
+
+  const tdAct = document.createElement('td');
+  const saveB = document.createElement('button'); saveB.className='btn btn-green btn-xs'; saveB.textContent='Save';
+  const cancelB = document.createElement('button'); cancelB.className='btn btn-slate btn-xs'; cancelB.style.marginLeft='4px'; cancelB.textContent='Cancel';
+  saveB.onclick = ()=>{
+    if(!di.value||!empSel.value||!amt.value){ showToast('Fill all fields.','error'); return; }
+    const all = getExtras();
+    const rec = { date: di.value, emp: empSel.value, desc: desc.value, direction: typeSel.value, amount: parseFloat(amt.value)||0 };
+    if(typeof idx==='number' && idx>=0 && idx<all.length){
+      all[idx] = rec;
+      showToast('Extra updated!','success');
+    } else {
+      all.unshift(rec);
+      showToast('Extra added!','success');
+    }
+    saveExtras(all);
+    renderExtras();
+  };
+  cancelB.onclick = ()=>{ tr.remove(); };
+  tdAct.append(saveB,cancelB);
+  tr.appendChild(tdAct);
+
+  tbody.insertBefore(tr, tbody.firstChild);
+}
+
+function clearSitePayFilters(){
+  document.getElementById('spay-search').value='';
+  document.getElementById('spay-month').value='';
+  renderSitePayments();
+}
+
+function renderSitePayments(){
+  const month = document.getElementById('spay-month').value;
+  const search = (document.getElementById('spay-search').value||'').toLowerCase().trim();
+  const allPayments = getSitePayments();
+  const indexed = allPayments.map((p,i)=>({p,i}));
+  let payments = indexed;
+  if(month) payments = payments.filter(({p})=>p.date && p.date.slice(0,7)===month);
+  if(search) payments = payments.filter(({p})=>(p.site||'').toLowerCase().includes(search));
+
+  const tbody=document.getElementById('spay-tbody');
+  tbody.innerHTML='';
+  if(!payments.length){
+    tbody.innerHTML='<tr><td colspan="7" class="empty-state">No payments recorded for this period.</td></tr>';
+    document.getElementById('spay-total').style.display='none';
+    return;
+  }
+
+  let total=0;
+  payments.forEach(({p, i}, idx)=>{
+    const amt=parseFloat(p.amount)||0;
+    total += amt;
+    const tr=document.createElement('tr');
+    mkTd(tr, idx+1); mkTd(tr, p.date||''); mkTd(tr, p.site||''); mkTd(tr, p.desc||'');
+    const ta=document.createElement('td'); ta.innerHTML=`<strong>Rs ${amt.toLocaleString()}</strong>`; tr.appendChild(ta);
+    const tdEdit=document.createElement('td');
+    const eb=document.createElement('button'); eb.className='btn btn-amber btn-xs'; eb.textContent='Edit';
+    eb.onclick=()=>addSitePaymentRow(p,i);
+    tdEdit.appendChild(eb); tr.appendChild(tdEdit);
+    const tdDel=document.createElement('td');
+    const db=document.createElement('button'); db.className='btn btn-coral btn-xs'; db.textContent='Delete';
+    db.onclick=()=>{
+      if(!confirm('Delete this payment?')) return;
+      const all=getSitePayments();
+      if(i>=0 && i<all.length){ all.splice(i,1); saveSitePayments(all); }
+      renderSitePayments();
+    };
+    tdDel.appendChild(db); tr.appendChild(tdDel);
+    tbody.appendChild(tr);
+  });
+
+  const totalEl=document.getElementById('spay-total');
+  totalEl.style.display='flex';
+  totalEl.innerHTML=`<span>Total Received (${month||'All Time'})</span><strong>Rs ${total.toLocaleString()}</strong>`;
+}
+
+function addSitePaymentRow(entry, idx){
+  const sites = sg(K.si)||[];
+  const tbody=document.getElementById('spay-tbody');
+  const existing=tbody.querySelector('.add-site-pay-row');
+  if(existing){ existing.remove(); if(!entry) return; }
+
+  const tr=document.createElement('tr'); tr.className='add-site-pay-row';
+  const tdDate=document.createElement('td');
+  const di=document.createElement('input'); di.type='date'; di.className='ext-inp'; di.value=entry?.date||today(); di.style.minWidth='110px';
+  tdDate.appendChild(di);
+
+  const tdSite=document.createElement('td');
+  const ssSel=document.createElement('select'); ssSel.className='ext-inp'; ssSel.style.minWidth='140px';
+  ssSel.innerHTML='<option value="">Site…</option>';
+  sites.forEach(s=>ssSel.innerHTML+=`<option value="${s}">${s}</option>`);
+  ssSel.value = entry?.site||'';
+  tdSite.appendChild(ssSel);
+
   const tdDesc=document.createElement('td');
   const desc=document.createElement('input'); desc.type='text'; desc.className='ext-inp ext-inp-wide'; desc.placeholder='Description…';
+  desc.value = entry?.desc||'';
   tdDesc.appendChild(desc);
-  // Amount
+
   const tdAmt=document.createElement('td');
   const amt=document.createElement('input'); amt.type='number'; amt.className='ext-inp'; amt.placeholder='0'; amt.min='0';
+  amt.value = entry?.amount||'';
   tdAmt.appendChild(amt);
-  // Save / Cancel
-  const tdAct=document.createElement('td');
+
+  const tdEdit=document.createElement('td');
   const saveB=document.createElement('button'); saveB.className='btn btn-green btn-xs'; saveB.textContent='Save';
   const cancelB=document.createElement('button'); cancelB.className='btn btn-slate btn-xs'; cancelB.style.marginLeft='4px'; cancelB.textContent='Cancel';
   saveB.onclick=()=>{
-    if(!di.value||!es.value||!amt.value){ showToast('Fill all fields.','error'); return; }
-    const all=getExtras();
-    all.push({ date:di.value, emp:es.value, desc:desc.value, amount:parseFloat(amt.value)||0 });
-    saveExtras(all);
-    tr.remove(); renderExtras();
-    showToast('Extra entry saved!','success');
+    if(!di.value||!ssSel.value||!amt.value){ showToast('Fill all fields.','error'); return; }
+    const all=getSitePayments();
+    const rec={ date:di.value, site:ssSel.value, desc:desc.value, amount:parseFloat(amt.value)||0 };
+    if(typeof idx==='number' && idx>=0 && idx<all.length){
+      all[idx]=rec;
+      showToast('Site payment updated!','success');
+    } else {
+      all.unshift(rec);
+      showToast('Site payment added!','success');
+    }
+    saveSitePayments(all);
+    tr.remove(); renderSitePayments();
   };
   cancelB.onclick=()=>tr.remove();
-  tdAct.append(saveB,cancelB);
-  // # cell
-  const td0=document.createElement('td'); td0.textContent='New';
-  tr.append(td0,tdDate,tdEmp,tdDesc,tdAmt,tdAct);
+  tdEdit.append(saveB,cancelB);
+
+  const td0=document.createElement('td'); td0.textContent= entry ? 'Edit' : 'New';
+  tr.append(td0,tdDate,tdSite,tdDesc,tdAmt,tdEdit,document.createElement('td'));
   tbody.insertBefore(tr, tbody.firstChild);
 }
 
@@ -1890,7 +2094,13 @@ function renderEmpPay(){
   filtered.forEach(r=>{
     if(r[3]){ dayCount[r[3]]=(dayCount[r[3]]||0)+1; if(r[5]==='Yes') mealCount[r[3]]=(mealCount[r[3]]||0)+1; }
   });
-  extFiltered.forEach(x=>{ if(x.emp) extraTotals[x.emp]=(extraTotals[x.emp]||0)+(parseFloat(x.amount)||0); });
+  extFiltered.forEach(x=>{
+    if(!x.emp) return;
+    const amt = parseFloat(x.amount)||0;
+    const dir = x.direction || 'to-employee';
+    const signed = dir === 'to-admin' ? -amt : amt;
+    extraTotals[x.emp] = (extraTotals[x.emp]||0) + signed;
+  });
 
   if(!emps.length){ cards.innerHTML='<div class="empty-state" style="grid-column:1/-1">No employees found.</div>'; return; }
 
@@ -1906,7 +2116,7 @@ function renderEmpPay(){
       <div class="epc-row"><span class="epc-label">Attendance Pay</span><span class="epc-val">Rs ${attPay.toLocaleString()}</span></div>
       <div class="epc-row"><span class="epc-label">Meals</span><span class="epc-val">${meals} × Rs ${mpd.toLocaleString()}</span></div>
       <div class="epc-row"><span class="epc-label">Meal Pay</span><span class="epc-val">Rs ${mealPay.toLocaleString()}</span></div>
-      <div class="epc-row"><span class="epc-label">Extras</span><span class="epc-val">Rs ${extras.toLocaleString()}</span></div>
+      <div class="epc-row"><span class="epc-label">Extras (net)</span><span class="epc-val">Rs ${extras.toLocaleString()}</span></div>
       <div class="epc-total"><span>Total Pay</span><strong>Rs ${total.toLocaleString()}</strong></div>
     `;
     cards.appendChild(card);
@@ -1936,17 +2146,38 @@ function renderSitePay(){
     siteData[r[4]].cost += ppd + mealBonus;
   });
 
+  const payments = getSitePayments();
+  const payMonth = month;
+  const paymentsBySite = {};
+  (payments||[]).forEach(p=>{
+    if(!p.site) return;
+    if(payMonth && p.date && p.date.slice(0,7)!==payMonth) return;
+    if(!paymentsBySite[p.site]) paymentsBySite[p.site]=0;
+    paymentsBySite[p.site] += parseFloat(p.amount)||0;
+  });
+
   tbody.innerHTML='';
   const sites=Object.keys(siteData);
-  if(!sites.length){ tbody.innerHTML='<tr><td colspan="5" class="empty-state">No data for this period.</td></tr>'; return; }
+  if(!sites.length){ tbody.innerHTML='<tr><td colspan="7" class="empty-state">No data for this period.</td></tr>'; return; }
 
   sites.forEach((site,i)=>{
     const sd=siteData[site];
     const tr=document.createElement('tr');
     mkTd(tr,i+1); mkTd(tr,site); mkTd(tr,sd.days);
     mkTd(tr,[...sd.emps].join(', ')||'—');
+    const labourCost = sd.cost; // includes meal bonus
     const tc=document.createElement('td'); tc.className='pay-total-cell';
-    tc.textContent='Rs '+sd.cost.toLocaleString(); tr.appendChild(tc);
+    tc.textContent='Rs '+labourCost.toLocaleString(); tr.appendChild(tc);
+
+    const received = paymentsBySite[site]||0;
+    const trc=document.createElement('td'); trc.className='pay-total-cell';
+    trc.textContent='Rs '+received.toLocaleString(); tr.appendChild(trc);
+
+    const balance = received - labourCost;
+    const trb=document.createElement('td'); trb.className='pay-total-cell '+(balance>=0? 'balance-positive':'balance-negative');
+    trb.textContent=(balance>=0? 'Rs ':'- Rs ') + Math.abs(balance).toLocaleString();
+    tr.appendChild(trb);
+
     tbody.appendChild(tr);
   });
 }
