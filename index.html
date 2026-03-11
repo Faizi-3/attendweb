@@ -544,6 +544,59 @@ body.dark .meal-card.s { background:linear-gradient(135deg,rgba(238,108,77,.2),r
 }
 
 /* ═══════════════════════════════════════════════
+   PAYMENT SECTIONS
+═══════════════════════════════════════════════ */
+.pay-rate-inp {
+  width:90px; padding:5px 8px; font-size:.82rem; border-radius:7px;
+  border:1.5px solid var(--inp-b); background:var(--inp); color:var(--text);
+  text-align:right; font-family:'DM Sans',sans-serif; outline:none;
+  transition:border-color .2s;
+}
+.pay-rate-inp:focus { border-color:var(--blue); box-shadow:0 0 0 2px rgba(61,90,128,.1); }
+.pay-total-cell {
+  font-family:'Playfair Display',serif; font-size:.95rem;
+  font-weight:700; color:var(--coral);
+}
+.pay-summary-bar {
+  background:linear-gradient(135deg,rgba(61,90,128,.1),rgba(152,193,217,.07));
+  border:1px solid var(--border); border-radius:var(--rs);
+  padding:12px 16px; margin-bottom:14px;
+  display:flex; gap:20px; flex-wrap:wrap; align-items:center;
+}
+.pay-summary-bar .ps-item { display:flex; flex-direction:column; gap:2px; }
+.pay-summary-bar .ps-label { font-size:.65rem; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:var(--text3); }
+.pay-summary-bar .ps-val { font-family:'Playfair Display',serif; font-size:1.15rem; color:var(--text); }
+.pay-summary-bar .ps-val.coral { color:var(--coral); }
+.pay-total-row {
+  background:linear-gradient(135deg,rgba(238,108,77,.1),rgba(238,108,77,.04));
+  border:1px solid rgba(238,108,77,.25); border-radius:var(--rs);
+  padding:12px 16px; margin-top:12px;
+  display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;
+}
+.pay-total-row span { font-size:.82rem; color:var(--text2); font-weight:600; }
+.pay-total-row strong { font-family:'Playfair Display',serif; font-size:1.1rem; color:var(--coral); }
+.emp-pay-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; }
+.emp-pay-card {
+  background:var(--sec-bg); border:1px solid var(--border);
+  border-radius:var(--rs); padding:16px; transition:transform .2s;
+}
+.emp-pay-card:hover { transform:translateY(-2px); }
+.epc-name { font-weight:700; font-size:.95rem; color:var(--text); margin-bottom:10px; display:flex; align-items:center; gap:8px; }
+.epc-avatar { width:32px; height:32px; border-radius:50%; background:var(--btn-navy); display:flex; align-items:center; justify-content:center; font-size:.85rem; font-weight:700; color:#e0fbfc; flex-shrink:0; }
+.epc-row { display:flex; justify-content:space-between; align-items:center; padding:4px 0; border-bottom:1px solid var(--border2); font-size:.8rem; }
+.epc-row:last-child { border-bottom:none; }
+.epc-label { color:var(--text3); }
+.epc-val { font-weight:600; color:var(--text); }
+.epc-total { margin-top:10px; padding-top:10px; border-top:2px solid rgba(238,108,77,.25); display:flex; justify-content:space-between; align-items:center; }
+.epc-total span { font-size:.78rem; color:var(--text2); font-weight:700; text-transform:uppercase; letter-spacing:.6px; }
+.epc-total strong { font-family:'Playfair Display',serif; font-size:1.25rem; color:var(--coral); }
+tbody td input.ext-inp {
+  padding:4px 8px; font-size:.8rem; border-radius:7px; min-height:28px;
+  width:auto; min-width:80px;
+}
+tbody td input.ext-inp-wide { min-width:140px; }
+
+/* ═══════════════════════════════════════════════
    KEYFRAMES
 ═══════════════════════════════════════════════ */
 @keyframes fadeDown { from{opacity:0;transform:translateY(-16px);}to{opacity:1;transform:none;} }
@@ -689,19 +742,34 @@ body.dark .meal-card.s { background:linear-gradient(135deg,rgba(238,108,77,.2),r
         <div class="nav-title">Admin Menu</div>
         <div class="nav-group">
           <button class="nav-btn active" id="nb-records" onclick="showSub('records')">
-            📋 All Records
+            All Records
           </button>
           <button class="nav-btn" id="nb-meal" onclick="showSub('meal')">
-            🍽️ Meal Summary
+            Meal Summary
           </button>
           <button class="nav-btn" id="nb-manage" onclick="showSub('manage')">
-            ⚙️ Manage Data
+            Manage Data
+          </button>
+        </div>
+        <div class="nav-divider"></div>
+        <div class="nav-group">
+          <button class="nav-btn" id="nb-empinfo" onclick="showSub('empinfo')">
+            Employee Salary Info
+          </button>
+          <button class="nav-btn" id="nb-extras" onclick="showSub('extras')">
+            Extras Amount
+          </button>
+          <button class="nav-btn" id="nb-emppay" onclick="showSub('emppay')">
+            Employee Pay
+          </button>
+          <button class="nav-btn" id="nb-sitepay" onclick="showSub('sitepay')">
+            Sites Payment
           </button>
         </div>
         <div class="nav-divider"></div>
         <div class="nav-group">
           <button class="nav-btn nav-logout" onclick="doLogout()">
-            🚪 Logout
+            Logout
           </button>
         </div>
       </nav>
@@ -798,6 +866,91 @@ body.dark .meal-card.s { background:linear-gradient(135deg,rgba(238,108,77,.2),r
                   <button class="btn btn-green btn-sm" onclick="addSite()">Add</button>
                 </div>
               </div>
+            </div>
+
+          <!-- SUB: EMPLOYEE SALARY INFO -->
+          <div class="a-sub" id="sub-empinfo">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:6px;">
+              <div class="sec-title" style="margin-bottom:0">Employee Salary Info</div>
+              <div class="fg" style="min-width:160px;">
+                <label>Select Month</label>
+                <select id="epi-month" onchange="renderEmpPayInfo()"><option value="">All Months</option></select>
+              </div>
+            </div>
+            <p style="font-size:.75rem;color:var(--text3);margin-bottom:12px;">Enter Pay per Day and Meal Pay for each employee. Select a month to see their attendance counts and auto-calculated totals.</p>
+            <div class="pay-summary-bar" id="epi-summary" style="display:none"></div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Employee</th>
+                    <th>Days Present</th>
+                    <th>Pay per Day (Rs)</th>
+                    <th>Meal Pay per Meal (Rs)</th>
+                    <th>Total Pay (Rs)</th>
+                  </tr>
+                </thead>
+                <tbody id="epi-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- SUB: EXTRAS AMOUNT -->
+          <div class="a-sub" id="sub-extras">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+              <div class="sec-title" style="margin-bottom:0">Extras Amount</div>
+              <button class="btn btn-green btn-sm" onclick="addExtraRow()">+ Add Entry</button>
+            </div>
+            <div class="fg" style="max-width:200px;margin-bottom:14px;">
+              <label>Filter Month</label>
+              <select id="ext-month" onchange="renderExtras()"><option value="">All Months</option></select>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>#</th><th>Date</th><th>Employee</th><th>Description</th><th>Amount (Rs)</th><th>Delete</th></tr>
+                </thead>
+                <tbody id="ext-tbody">
+                  <tr><td colspan="6" class="empty-state">No extras added yet. Click "+ Add Entry".</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="pay-total-row" id="ext-total" style="display:none"></div>
+          </div>
+
+          <!-- SUB: EMPLOYEE PAY -->
+          <div class="a-sub" id="sub-emppay">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+              <div class="sec-title" style="margin-bottom:0">Employee Pay</div>
+              <div class="fg" style="min-width:160px;">
+                <label>Select Month</label>
+                <select id="ep-month" onchange="renderEmpPay()"><option value="">All Months</option></select>
+              </div>
+            </div>
+            <div id="ep-cards" class="emp-pay-grid">
+              <div class="empty-state" style="grid-column:1/-1">Select a month to view pay breakdown.</div>
+            </div>
+          </div>
+
+          <!-- SUB: SITES PAYMENT -->
+          <div class="a-sub" id="sub-sitepay">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+              <div class="sec-title" style="margin-bottom:0">Sites Payment</div>
+              <div class="fg" style="min-width:160px;">
+                <label>Filter Month</label>
+                <select id="sp-month" onchange="renderSitePay()"><option value="">All Months</option></select>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>#</th><th>Site</th><th>Total Days Worked</th><th>Employees</th><th>Est. Labour Cost (Rs)</th></tr>
+                </thead>
+                <tbody id="sp-tbody">
+                  <tr><td colspan="5" class="empty-state">Select a month to view site payments.</td></tr>
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -911,7 +1064,7 @@ function showPage(name){
   document.querySelectorAll('.tab-btn').forEach(b=>{
     if(b.getAttribute('onclick')&&b.getAttribute('onclick').includes("'"+name+"'")) b.classList.add('active');
   });
-  if(name==='admin') loadAdminAtt(false);
+  if(name==='admin'){ loadAdminAtt(false); }
   if(name==='attendance') loadAtt(false);
   resetCD();
 }
@@ -924,6 +1077,14 @@ function showSub(name){
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('sub-'+name).classList.add('active');
   document.getElementById('nb-'+name).classList.add('active');
+  if(name==='empinfo'){
+    document.getElementById('epi-tbody').innerHTML=
+      '<tr><td colspan="6" class="empty-state"><span class="sp"></span> Loading\u2026</td></tr>';
+    renderEmpPayInfo();
+  }
+  if(name==='extras')  renderExtras();
+  if(name==='emppay')  renderEmpPay();
+  if(name==='sitepay') renderSitePay();
 }
 
 /* ══════════════════════════════════════════
@@ -1193,7 +1354,10 @@ async function loadAdminAtt(force){
   if(!force && c && sfr(K.ta)){
     adminData=c; applyAdminFilters(); renderCounts(c);
     populateMealMonths(c); populateMonths(c,'af-month');
-    updCacheBar('adm-cbar','adm-cdot','adm-clbl',K.ta); return;
+    updCacheBar('adm-cbar','adm-cdot','adm-clbl',K.ta);
+    populatePayMonths();
+    if(document.getElementById('sub-empinfo').classList.contains('active')) renderEmpPayInfo();
+    return;
   }
   tbody.innerHTML='<tr><td colspan="9" class="empty-state"><span class="sp"></span> Loading…</td></tr>';
   try{
@@ -1208,6 +1372,8 @@ async function loadAdminAtt(force){
     populateMealMonths(adminData); populateMonths(adminData,'af-month');
     renderEmps(emps); renderSites(sites); fillSiteSels(sites);
     updCacheBar('adm-cbar','adm-cdot','adm-clbl',K.ta);
+    populatePayMonths();
+    if(document.getElementById('sub-empinfo').classList.contains('active')) renderEmpPayInfo();
   }catch(e){
     tbody.innerHTML='<tr><td colspan="9" class="empty-state" style="color:var(--coral)">Error loading data.</td></tr>';
   }
@@ -1463,6 +1629,345 @@ function showToast(msg, type='info'){
   el.textContent=msg; el.className=`show ${type}`;
   _tt=setTimeout(()=>el.className='', 3500);
 }
+
+/* ══════════════════════════════════════════
+   PAYMENT STORAGE — persisted in sessionStorage
+   payRates: { empName: { ppd: number, mpd: number } }
+   extras:   [ { date, emp, desc, amount } ]
+══════════════════════════════════════════ */
+const PK = { rates:'at_payrates', extras:'at_extras' };
+const getPayRates = () => sg(PK.rates) || {};
+const getExtras   = () => sg(PK.extras) || [];
+function savePayRate(emp, field, val){
+  const r = getPayRates();
+  if(!r[emp]) r[emp] = { ppd:0, mpd:0 };
+  r[emp][field] = parseFloat(val)||0;
+  ss(PK.rates, r);
+}
+function saveExtras(arr){ ss(PK.extras, arr); }
+
+/* ══════════════════════════════════════════
+   POPULATE PAYMENT MONTH SELECTORS
+   Called whenever adminData is refreshed
+══════════════════════════════════════════ */
+function populatePayMonths(){
+  ['epi-month','ep-month','sp-month','ext-month'].forEach(id => populateMonths(adminData, id));
+}
+
+/* ══════════════════════════════════════════
+   SUB: EMPLOYEE SALARY INFO
+   Always reads employees fresh, shows all
+   with two manual input columns + live total.
+══════════════════════════════════════════ */
+async function renderEmpPayInfo(){
+  const month = document.getElementById('epi-month').value;
+  const tbody = document.getElementById('epi-tbody');
+  const rates = getPayRates();
+
+  // ── Use already-loaded data first (fast path) ──
+  let emps = sg(K.emp) || [];
+  let att  = (adminData && adminData.length) ? adminData : (sg(K.att) || []);
+
+  // ── If employees still empty, fetch now ──
+  if(!emps.length){
+    tbody.innerHTML='<tr><td colspan="6" class="empty-state"><span class="sp"></span> Loading…</td></tr>';
+    try{
+      emps = await req({action:'getEmployees'});
+      if(!Array.isArray(emps)) emps=[];
+      ss(K.emp, emps); ss(K.te, Date.now());
+    }catch(e){ emps=[]; }
+  }
+
+  // ── If attendance still empty, fetch now ──
+  if(!att.length){
+    try{
+      att = await req({action:'getAttendanceWithRowIndex'});
+      if(!Array.isArray(att)) att=[];
+      adminData=att; ss(K.att,att); ss(K.ta,Date.now());
+    }catch(e){ att=[]; }
+  }
+
+  tbody.innerHTML='';
+
+  if(!emps.length){
+    tbody.innerHTML='<tr><td colspan="6" class="empty-state">No employees found — add them in <strong>Manage Data</strong> first.</td></tr>';
+    document.getElementById('epi-summary').style.display='none';
+    return;
+  }
+
+  // ── Count days & meals per employee ──
+  const dc={}, mc={};
+  emps.forEach(e=>{ dc[e]=0; mc[e]=0; });
+  const src = month ? att.filter(r=>ymOf(r[2])===month) : att;
+  src.forEach(r=>{
+    if(!r[3]) return;
+    dc[r[3]]=(dc[r[3]]||0)+1;
+    if(r[5]==='Yes') mc[r[3]]=(mc[r[3]]||0)+1;
+  });
+
+  // ── Build rows ──
+  emps.forEach((emp,i)=>{
+    const name  = typeof emp==='string' ? emp : (emp[0]||String(emp));
+    const days  = dc[name]||0;
+    const meals = mc[name]||0;
+    const ppd   = parseFloat((rates[name]&&rates[name].ppd)||0);
+    const mpd   = parseFloat((rates[name]&&rates[name].mpd)||0);
+    const tr    = document.createElement('tr');
+
+    // Serial
+    mkTd(tr, i+1);
+
+    // Name + attendance hint
+    const tdN = document.createElement('td');
+    tdN.innerHTML = '<strong>'+name+'</strong>'
+      +(month ? '<div style="font-size:.7rem;color:var(--text3);margin-top:2px">'+days+' day'+(days!==1?'s':'')+' • '+meals+' meal'+(meals!==1?'s':'')+'</div>' : '');
+    tr.appendChild(tdN);
+
+    // Days present
+    const tdD = document.createElement('td');
+    tdD.textContent = days;
+    tdD.style.cssText = 'font-weight:700;color:var(--blue)';
+    tr.appendChild(tdD);
+
+    // Pay per Day — manual input
+    const tdPpd = document.createElement('td');
+    const pInp  = document.createElement('input');
+    pInp.type='number'; pInp.className='pay-rate-inp';
+    pInp.min='0'; pInp.step='50'; pInp.placeholder='0';
+    pInp.value = ppd || '';
+    tdPpd.appendChild(pInp); tr.appendChild(tdPpd);
+
+    // Meal Pay — manual input
+    const tdMpd = document.createElement('td');
+    const mInp  = document.createElement('input');
+    mInp.type='number'; mInp.className='pay-rate-inp';
+    mInp.min='0'; mInp.step='10'; mInp.placeholder='0';
+    mInp.value = mpd || '';
+    tdMpd.appendChild(mInp); tr.appendChild(tdMpd);
+
+    // Total — live auto-calc
+    const tdT = document.createElement('td');
+    tdT.className = 'pay-total-cell';
+    const calc = ()=>{
+      const p=parseFloat(pInp.value)||0, m=parseFloat(mInp.value)||0;
+      tdT.textContent = 'Rs '+((days*p)+(meals*m)).toLocaleString();
+      savePayRate(name,'ppd',p);
+      savePayRate(name,'mpd',m);
+      recalcEpiSummary(emps.map(e=>typeof e==='string'?e:(e[0]||String(e))), att, month);
+    };
+    calc();
+    pInp.addEventListener('input', calc);
+    mInp.addEventListener('input', calc);
+    tr.appendChild(tdT);
+
+    tbody.appendChild(tr);
+  });
+
+  recalcEpiSummary(emps.map(e=>typeof e==='string'?e:(e[0]||String(e))), att, month);
+}
+
+function recalcEpiSummary(emps, att, month){
+  const rates = getPayRates();
+  const src   = month ? (att||[]).filter(r=>ymOf(r[2])===month) : (att||[]);
+  const dc={}, mc={};
+  (emps||[]).forEach(e=>{ dc[e]=0; mc[e]=0; });
+  src.forEach(r=>{
+    if(!r[3]) return;
+    dc[r[3]]=(dc[r[3]]||0)+1;
+    if(r[5]==='Yes') mc[r[3]]=(mc[r[3]]||0)+1;
+  });
+  let grand=0, tDays=0, tMeals=0;
+  (emps||[]).forEach(e=>{
+    const p=parseFloat((rates[e]&&rates[e].ppd)||0);
+    const m=parseFloat((rates[e]&&rates[e].mpd)||0);
+    grand  += (dc[e]||0)*p + (mc[e]||0)*m;
+    tDays  += dc[e]||0;
+    tMeals += mc[e]||0;
+  });
+  const bar=document.getElementById('epi-summary');
+  if(!bar) return;
+  bar.style.display='flex';
+  bar.innerHTML=`
+    <div class="ps-item"><div class="ps-label">Total Days</div><div class="ps-val">${tDays}</div></div>
+    <div class="ps-item"><div class="ps-label">Total Meals</div><div class="ps-val">${tMeals}</div></div>
+    <div class="ps-item"><div class="ps-label">Total Payable</div><div class="ps-val coral">Rs ${grand.toLocaleString()}</div></div>
+  `;
+}
+
+/* ══════════════════════════════════════════
+   SUB: EXTRAS AMOUNT}
+
+/* ══════════════════════════════════════════
+   SUB: EXTRAS AMOUNT
+   Stored in sessionStorage — extras array
+══════════════════════════════════════════ */
+function renderExtras(){
+  const month = document.getElementById('ext-month').value;
+  let extras  = getExtras();
+  const emps  = sg(K.emp) || [];
+  if(month) extras = extras.filter(x => x.date && x.date.slice(0,7)===month);
+  const tbody = document.getElementById('ext-tbody');
+  tbody.innerHTML='';
+  if(!extras.length){
+    tbody.innerHTML='<tr><td colspan="6" class="empty-state">No extras for this period.</td></tr>';
+    document.getElementById('ext-total').style.display='none';
+    return;
+  }
+  let total=0;
+  extras.forEach((x,i)=>{
+    total += parseFloat(x.amount)||0;
+    const tr=document.createElement('tr');
+    mkTd(tr,i+1);
+    mkTd(tr, x.date||'');
+    mkTd(tr, x.emp||'');
+    mkTd(tr, x.desc||'');
+    const ta=document.createElement('td');
+    ta.innerHTML=`<strong>Rs ${(parseFloat(x.amount)||0).toLocaleString()}</strong>`;
+    tr.appendChild(ta);
+    const tdDel=document.createElement('td');
+    const db=document.createElement('button'); db.className='btn btn-coral btn-xs'; db.textContent='Delete';
+    db.onclick=()=>{
+      if(!confirm('Delete this entry?')) return;
+      const all=getExtras(); const idx=all.findIndex(e=>e.date===x.date&&e.emp===x.emp&&e.desc===x.desc&&e.amount===x.amount);
+      if(idx>-1){ all.splice(idx,1); saveExtras(all); }
+      renderExtras();
+    };
+    tdDel.appendChild(db); tr.appendChild(tdDel);
+    tbody.appendChild(tr);
+  });
+  const trow=document.getElementById('ext-total');
+  trow.style.display='flex';
+  trow.innerHTML=`<span>Total Extras (${month||'All Time'})</span><strong>Rs ${total.toLocaleString()}</strong>`;
+}
+
+function addExtraRow(){
+  const emps = sg(K.emp)||[];
+  // simple modal-like inline form at top of tbody
+  const tbody=document.getElementById('ext-tbody');
+  // Remove any existing add-row
+  const existing=tbody.querySelector('.add-extra-row');
+  if(existing){ existing.remove(); return; }
+
+  const tr=document.createElement('tr'); tr.className='add-extra-row';
+  // Date
+  const tdDate=document.createElement('td');
+  const di=document.createElement('input'); di.type='date'; di.className='ext-inp'; di.value=today(); di.style.minWidth='110px';
+  tdDate.appendChild(di);
+  // Employee select
+  const tdEmp=document.createElement('td');
+  const es=document.createElement('select'); es.className='ext-inp'; es.style.minWidth='110px';
+  es.innerHTML='<option value="">Employee…</option>';
+  emps.forEach(e=>es.innerHTML+=`<option value="${e}">${e}</option>`);
+  tdEmp.appendChild(es);
+  // Description
+  const tdDesc=document.createElement('td');
+  const desc=document.createElement('input'); desc.type='text'; desc.className='ext-inp ext-inp-wide'; desc.placeholder='Description…';
+  tdDesc.appendChild(desc);
+  // Amount
+  const tdAmt=document.createElement('td');
+  const amt=document.createElement('input'); amt.type='number'; amt.className='ext-inp'; amt.placeholder='0'; amt.min='0';
+  tdAmt.appendChild(amt);
+  // Save / Cancel
+  const tdAct=document.createElement('td');
+  const saveB=document.createElement('button'); saveB.className='btn btn-green btn-xs'; saveB.textContent='Save';
+  const cancelB=document.createElement('button'); cancelB.className='btn btn-slate btn-xs'; cancelB.style.marginLeft='4px'; cancelB.textContent='Cancel';
+  saveB.onclick=()=>{
+    if(!di.value||!es.value||!amt.value){ showToast('Fill all fields.','error'); return; }
+    const all=getExtras();
+    all.push({ date:di.value, emp:es.value, desc:desc.value, amount:parseFloat(amt.value)||0 });
+    saveExtras(all);
+    tr.remove(); renderExtras();
+    showToast('Extra entry saved!','success');
+  };
+  cancelB.onclick=()=>tr.remove();
+  tdAct.append(saveB,cancelB);
+  // # cell
+  const td0=document.createElement('td'); td0.textContent='New';
+  tr.append(td0,tdDate,tdEmp,tdDesc,tdAmt,tdAct);
+  tbody.insertBefore(tr, tbody.firstChild);
+}
+
+/* ══════════════════════════════════════════
+   SUB: EMPLOYEE PAY (summary cards)
+   = attendance pay + extras for that month
+══════════════════════════════════════════ */
+function renderEmpPay(){
+  const month = document.getElementById('ep-month').value;
+  const emps  = sg(K.emp)||[];
+  const rates = getPayRates();
+  const cards = document.getElementById('ep-cards');
+  cards.innerHTML='';
+
+  const filtered = month ? adminData.filter(r=>ymOf(r[2])===month) : adminData;
+  const extFiltered = month ? getExtras().filter(x=>x.date&&x.date.slice(0,7)===month) : getExtras();
+
+  const dayCount={}, mealCount={}, extraTotals={};
+  emps.forEach(e=>{ dayCount[e]=0; mealCount[e]=0; extraTotals[e]=0; });
+  filtered.forEach(r=>{
+    if(r[3]){ dayCount[r[3]]=(dayCount[r[3]]||0)+1; if(r[5]==='Yes') mealCount[r[3]]=(mealCount[r[3]]||0)+1; }
+  });
+  extFiltered.forEach(x=>{ if(x.emp) extraTotals[x.emp]=(extraTotals[x.emp]||0)+(parseFloat(x.amount)||0); });
+
+  if(!emps.length){ cards.innerHTML='<div class="empty-state" style="grid-column:1/-1">No employees found.</div>'; return; }
+
+  emps.forEach(emp=>{
+    const ppd=(rates[emp]&&rates[emp].ppd)||0, mpd=(rates[emp]&&rates[emp].mpd)||0;
+    const days=dayCount[emp]||0, meals=mealCount[emp]||0, extras=extraTotals[emp]||0;
+    const attPay=days*ppd, mealPay=meals*mpd, total=attPay+mealPay+extras;
+    const initials=emp.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const card=document.createElement('div'); card.className='emp-pay-card';
+    card.innerHTML=`
+      <div class="epc-name"><div class="epc-avatar">${initials}</div>${emp}</div>
+      <div class="epc-row"><span class="epc-label">Days Present</span><span class="epc-val">${days} × Rs ${ppd.toLocaleString()}</span></div>
+      <div class="epc-row"><span class="epc-label">Attendance Pay</span><span class="epc-val">Rs ${attPay.toLocaleString()}</span></div>
+      <div class="epc-row"><span class="epc-label">Meals</span><span class="epc-val">${meals} × Rs ${mpd.toLocaleString()}</span></div>
+      <div class="epc-row"><span class="epc-label">Meal Pay</span><span class="epc-val">Rs ${mealPay.toLocaleString()}</span></div>
+      <div class="epc-row"><span class="epc-label">Extras</span><span class="epc-val">Rs ${extras.toLocaleString()}</span></div>
+      <div class="epc-total"><span>Total Pay</span><strong>Rs ${total.toLocaleString()}</strong></div>
+    `;
+    cards.appendChild(card);
+  });
+}
+
+/* ══════════════════════════════════════════
+   SUB: SITES PAYMENT
+   Groups attendance by site, sums up estimated labour cost
+══════════════════════════════════════════ */
+function renderSitePay(){
+  const month  = document.getElementById('sp-month').value;
+  const rates  = getPayRates();
+  const tbody  = document.getElementById('sp-tbody');
+  const filtered = month ? adminData.filter(r=>ymOf(r[2])===month) : adminData;
+
+  // Group by site
+  const siteData = {};
+  filtered.forEach(r=>{
+    if(!r[4]) return;
+    if(!siteData[r[4]]) siteData[r[4]]={ days:0, emps:new Set(), cost:0 };
+    siteData[r[4]].days++;
+    siteData[r[4]].emps.add(r[3]);
+    const ppd=(rates[r[3]]&&rates[r[3]].ppd)||0;
+    const mpd=(rates[r[3]]&&rates[r[3]].mpd)||0;
+    const mealBonus = r[5]==='Yes' ? mpd : 0;
+    siteData[r[4]].cost += ppd + mealBonus;
+  });
+
+  tbody.innerHTML='';
+  const sites=Object.keys(siteData);
+  if(!sites.length){ tbody.innerHTML='<tr><td colspan="5" class="empty-state">No data for this period.</td></tr>'; return; }
+
+  sites.forEach((site,i)=>{
+    const sd=siteData[site];
+    const tr=document.createElement('tr');
+    mkTd(tr,i+1); mkTd(tr,site); mkTd(tr,sd.days);
+    mkTd(tr,[...sd.emps].join(', ')||'—');
+    const tc=document.createElement('td'); tc.className='pay-total-cell';
+    tc.textContent='Rs '+sd.cost.toLocaleString(); tr.appendChild(tc);
+    tbody.appendChild(tr);
+  });
+}
+
+
 </script>
 </body>
 </html>
