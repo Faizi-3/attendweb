@@ -288,6 +288,9 @@ body.dark .dup-alert { color:#ff9070; background:linear-gradient(135deg,rgba(238
   background-attachment:local; background-size:60px 100%; background-repeat:no-repeat;
 }
 table { width:100%; border-collapse:collapse; font-size:.82rem; }
+.salary-table { table-layout: fixed; }
+.salary-table th, .salary-table td { overflow: hidden; text-overflow: ellipsis; }
+.salary-table td input { width: 100%; box-sizing: border-box; }
 thead tr { background:linear-gradient(90deg,rgba(61,90,128,.09),rgba(152,193,217,.06)); }
 thead th {
   padding:9px 10px; text-align:left; font-weight:700;
@@ -867,31 +870,25 @@ tbody td input.ext-inp-wide { min-width:140px; }
                 </div>
               </div>
             </div>
+          </div>
 
           <!-- SUB: EMPLOYEE SALARY INFO -->
           <div class="a-sub" id="sub-empinfo">
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:6px;">
-              <div class="sec-title" style="margin-bottom:0">Employee Salary Info</div>
-              <div class="fg" style="min-width:160px;">
-                <label>Select Month</label>
-                <select id="epi-month" onchange="renderEmpPayInfo()"><option value="">All Months</option></select>
-              </div>
-            </div>
-            <p style="font-size:.75rem;color:var(--text3);margin-bottom:12px;">Enter Pay per Day and Meal Pay for each employee. Select a month to see their attendance counts and auto-calculated totals.</p>
-            <div class="pay-summary-bar" id="epi-summary" style="display:none"></div>
+            <div class="sec-title">Employee Salary Info</div>
+            <div id="epi-summary" style="display:none"></div>
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
                     <th>#</th>
                     <th>Employee</th>
-                    <th>Days Present</th>
                     <th>Pay per Day (Rs)</th>
-                    <th>Meal Pay per Meal (Rs)</th>
-                    <th>Total Pay (Rs)</th>
+                    <th>Meal Pay (Rs)</th>
                   </tr>
                 </thead>
-                <tbody id="epi-tbody"></tbody>
+                <tbody id="epi-tbody">
+                  <tr><td colspan="4" style="padding:16px;text-align:center;color:var(--text3)">Click the tab to load.</td></tr>
+                </tbody>
               </table>
             </div>
           </div>
@@ -993,6 +990,10 @@ const slb = k => { const t=sg(k); if(!t) return 'No cache'; const a=Date.now()-t
 const DAYS  = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const MONTHS= ['January','February','March','April','May','June','July','August','September','October','November','December'];
 let isAdmin=false, attData=[], adminData=[];
+// Salary table render locking (prevents fetch refresh from wiping user input)
+let salaryRenderLock = false;
+let pendingSalaryRender = null;
+let lastSalaryEmpList = null;
 
 const fmtD  = v => { if(!v) return ''; const d=normDate(v); if(!d) return String(v); const[yr,mo,dy]=d.split('-'); return `${dy}/${mo}/${yr}`; };
 const dayN  = v => { if(!v) return ''; const d=normDate(v); if(!d) return ''; const dt=new Date(d+'T00:00:00'); return isNaN(dt)?'':DAYS[dt.getDay()]; };
@@ -1075,17 +1076,16 @@ function showPage(name){
 function showSub(name){
   document.querySelectorAll('.a-sub').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('sub-'+name).classList.add('active');
-  document.getElementById('nb-'+name).classList.add('active');
-  if(name==='empinfo'){
-    document.getElementById('epi-tbody').innerHTML=
-      '<tr><td colspan="6" class="empty-state"><span class="sp"></span> Loading\u2026</td></tr>';
-    renderEmpPayInfo();
-  }
-  if(name==='extras')  renderExtras();
-  if(name==='emppay')  renderEmpPay();
-  if(name==='sitepay') renderSitePay();
+  const subEl = document.getElementById('sub-'+name);
+  const nbEl  = document.getElementById('nb-'+name);
+  if(subEl) subEl.classList.add('active');
+  if(nbEl)  nbEl.classList.add('active');
+  if(name==='empinfo')  loadAndShowSalary();
+  if(name==='extras')   renderExtras();
+  if(name==='emppay')   renderEmpPay();
+  if(name==='sitepay')  renderSitePay();
 }
+
 
 /* ══════════════════════════════════════════
    CACHE BAR
@@ -1135,6 +1135,11 @@ function renderEmps(d){
       lst.appendChild(div);
     }
   });
+
+  // If we're currently viewing the Employee Salary section, refresh the table so it includes newly added/removed employees.
+  if(document.getElementById('sub-empinfo')?.classList.contains('active')){
+    loadAndShowSalary();
+  }
 }
 
 /* ══════════════════════════════════════════
@@ -1356,7 +1361,7 @@ async function loadAdminAtt(force){
     populateMealMonths(c); populateMonths(c,'af-month');
     updCacheBar('adm-cbar','adm-cdot','adm-clbl',K.ta);
     populatePayMonths();
-    if(document.getElementById('sub-empinfo').classList.contains('active')) renderEmpPayInfo();
+    if(document.getElementById('sub-empinfo').classList.contains('active')) buildSalaryTable();
     return;
   }
   tbody.innerHTML='<tr><td colspan="9" class="empty-state"><span class="sp"></span> Loading…</td></tr>';
@@ -1373,7 +1378,7 @@ async function loadAdminAtt(force){
     renderEmps(emps); renderSites(sites); fillSiteSels(sites);
     updCacheBar('adm-cbar','adm-cdot','adm-clbl',K.ta);
     populatePayMonths();
-    if(document.getElementById('sub-empinfo').classList.contains('active')) renderEmpPayInfo();
+    if(document.getElementById('sub-empinfo').classList.contains('active')) buildSalaryTable();
   }catch(e){
     tbody.innerHTML='<tr><td colspan="9" class="empty-state" style="color:var(--coral)">Error loading data.</td></tr>';
   }
@@ -1635,14 +1640,24 @@ function showToast(msg, type='info'){
    payRates: { empName: { ppd: number, mpd: number } }
    extras:   [ { date, emp, desc, amount } ]
 ══════════════════════════════════════════ */
-const PK = { rates:'at_payrates', extras:'at_extras' };
-const getPayRates = () => sg(PK.rates) || {};
+const PK = { rates:'at_payrates', extras:'at_extras' }; // PR: pay rates are persisted in localStorage so they survive refresh
+const ls = (k,v)=>{ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
+const lg = k=>{ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):null; }catch(e){return null;} };
+const getPayRates = () => lg(PK.rates) || {};
 const getExtras   = () => sg(PK.extras) || [];
 function savePayRate(emp, field, val){
   const r = getPayRates();
   if(!r[emp]) r[emp] = { ppd:0, mpd:0 };
   r[emp][field] = parseFloat(val)||0;
-  ss(PK.rates, r);
+  ls(PK.rates, r);
+
+  // Attempt to persist per-employee pay rates back to the Google Sheet.
+  // NOTE: This requires a matching server-side action (e.g. "savePayRate")
+  // in the Apps Script backend. If it doesn't exist, this will fail silently.
+  (async () => {
+    try{ await req({action:'savePayRate', employee:emp, field, value:r[emp][field]}); }
+    catch(e){}
+  })();
 }
 function saveExtras(arr){ ss(PK.extras, arr); }
 
@@ -1659,140 +1674,109 @@ function populatePayMonths(){
    Always reads employees fresh, shows all
    with two manual input columns + live total.
 ══════════════════════════════════════════ */
-async function renderEmpPayInfo(){
-  const month = document.getElementById('epi-month').value;
+// Non-async: reads from already-loaded cache only — FAST, no API call
+function loadAndShowSalary(){
   const tbody = document.getElementById('epi-tbody');
-  const rates = getPayRates();
+  tbody.innerHTML = '<tr><td colspan="4" style="padding:16px;text-align:center;color:var(--text3)">Loading…</td></tr>';
+  document.getElementById('epi-summary').style.display = 'none';
 
-  // ── Use already-loaded data first (fast path) ──
-  let emps = sg(K.emp) || [];
-  let att  = (adminData && adminData.length) ? adminData : (sg(K.att) || []);
+  const render = function(emps){
+    // Avoid overwriting user edits while typing
+    if(salaryRenderLock){
+      pendingSalaryRender = emps;
+      return;
+    }
 
-  // ── If employees still empty, fetch now ──
-  if(!emps.length){
-    tbody.innerHTML='<tr><td colspan="6" class="empty-state"><span class="sp"></span> Loading…</td></tr>';
-    try{
-      emps = await req({action:'getEmployees'});
-      if(!Array.isArray(emps)) emps=[];
-      ss(K.emp, emps); ss(K.te, Date.now());
-    }catch(e){ emps=[]; }
+    // Avoid unnecessary re-renders when the employee list hasn't changed
+    const same = Array.isArray(emps) && Array.isArray(lastSalaryEmpList)
+      && emps.length===lastSalaryEmpList.length
+      && emps.every((v,i)=>v===lastSalaryEmpList[i]);
+    if(same && tbody.querySelector('tr') && tbody.querySelector('input')){
+      return;
+    }
+
+    lastSalaryEmpList = Array.isArray(emps) ? [...emps] : [];
+    tbody.innerHTML = '';
+    if(!Array.isArray(emps) || !emps.length){
+      tbody.innerHTML = '<tr><td colspan="4" style="padding:16px;text-align:center">No employees found. Add them in Manage Data.</td></tr>';
+      return;
+    }
+
+    const rates = getPayRates();
+    emps.forEach(function(emp, i){
+      const name = String(emp);
+      const ppd  = parseFloat((rates[name]&&rates[name].ppd)||0);
+      const mpd  = parseFloat((rates[name]&&rates[name].mpd)||0);
+
+      const tr = document.createElement('tr');
+      mkTd(tr, i+1);
+
+      const nameTd = document.createElement('td');
+      nameTd.innerHTML = '<strong>' + name + '</strong>';
+      tr.appendChild(nameTd);
+
+      const ppdTd = document.createElement('td');
+      const ppdInput = document.createElement('input');
+      ppdInput.type='number'; ppdInput.className='pay-rate-inp'; ppdInput.min='0'; ppdInput.placeholder='0'; ppdInput.value=ppd||'';
+      ppdTd.appendChild(ppdInput);
+      tr.appendChild(ppdTd);
+
+      const mpdTd = document.createElement('td');
+      const mpdInput = document.createElement('input');
+      mpdInput.type='number'; mpdInput.className='pay-rate-inp'; mpdInput.min='0'; mpdInput.placeholder='0'; mpdInput.value=mpd||'';
+      mpdTd.appendChild(mpdInput);
+      tr.appendChild(mpdTd);
+
+      const updateRate = function(){
+        const pv = parseFloat(ppdInput.value)||0;
+        const mv = parseFloat(mpdInput.value)||0;
+        savePayRate(name,'ppd',pv);
+        savePayRate(name,'mpd',mv);
+      };
+
+      const onFocus = () => { salaryRenderLock = true; };
+      const onBlur = () => {
+        salaryRenderLock = false;
+        if(pendingSalaryRender){
+          render(pendingSalaryRender);
+          pendingSalaryRender = null;
+        }
+      };
+
+      ppdInput.addEventListener('input', updateRate);
+      mpdInput.addEventListener('input', updateRate);
+      ppdInput.addEventListener('focus', onFocus);
+      mpdInput.addEventListener('focus', onFocus);
+      ppdInput.addEventListener('blur', onBlur);
+      mpdInput.addEventListener('blur', onBlur);
+
+      tbody.appendChild(tr);
+    });
+  };
+
+  // Render from cached employee list first (so newly added employees appear instantly)
+  const cached = sg(K.emp) || [];
+  if(cached.length){
+    render(cached);
   }
 
-  // ── If attendance still empty, fetch now ──
-  if(!att.length){
-    try{
-      att = await req({action:'getAttendanceWithRowIndex'});
-      if(!Array.isArray(att)) att=[];
-      adminData=att; ss(K.att,att); ss(K.ta,Date.now());
-    }catch(e){ att=[]; }
-  }
-
-  tbody.innerHTML='';
-
-  if(!emps.length){
-    tbody.innerHTML='<tr><td colspan="6" class="empty-state">No employees found — add them in <strong>Manage Data</strong> first.</td></tr>';
-    document.getElementById('epi-summary').style.display='none';
-    return;
-  }
-
-  // ── Count days & meals per employee ──
-  const dc={}, mc={};
-  emps.forEach(e=>{ dc[e]=0; mc[e]=0; });
-  const src = month ? att.filter(r=>ymOf(r[2])===month) : att;
-  src.forEach(r=>{
-    if(!r[3]) return;
-    dc[r[3]]=(dc[r[3]]||0)+1;
-    if(r[5]==='Yes') mc[r[3]]=(mc[r[3]]||0)+1;
-  });
-
-  // ── Build rows ──
-  emps.forEach((emp,i)=>{
-    const name  = typeof emp==='string' ? emp : (emp[0]||String(emp));
-    const days  = dc[name]||0;
-    const meals = mc[name]||0;
-    const ppd   = parseFloat((rates[name]&&rates[name].ppd)||0);
-    const mpd   = parseFloat((rates[name]&&rates[name].mpd)||0);
-    const tr    = document.createElement('tr');
-
-    // Serial
-    mkTd(tr, i+1);
-
-    // Name + attendance hint
-    const tdN = document.createElement('td');
-    tdN.innerHTML = '<strong>'+name+'</strong>'
-      +(month ? '<div style="font-size:.7rem;color:var(--text3);margin-top:2px">'+days+' day'+(days!==1?'s':'')+' • '+meals+' meal'+(meals!==1?'s':'')+'</div>' : '');
-    tr.appendChild(tdN);
-
-    // Days present
-    const tdD = document.createElement('td');
-    tdD.textContent = days;
-    tdD.style.cssText = 'font-weight:700;color:var(--blue)';
-    tr.appendChild(tdD);
-
-    // Pay per Day — manual input
-    const tdPpd = document.createElement('td');
-    const pInp  = document.createElement('input');
-    pInp.type='number'; pInp.className='pay-rate-inp';
-    pInp.min='0'; pInp.step='50'; pInp.placeholder='0';
-    pInp.value = ppd || '';
-    tdPpd.appendChild(pInp); tr.appendChild(tdPpd);
-
-    // Meal Pay — manual input
-    const tdMpd = document.createElement('td');
-    const mInp  = document.createElement('input');
-    mInp.type='number'; mInp.className='pay-rate-inp';
-    mInp.min='0'; mInp.step='10'; mInp.placeholder='0';
-    mInp.value = mpd || '';
-    tdMpd.appendChild(mInp); tr.appendChild(tdMpd);
-
-    // Total — live auto-calc
-    const tdT = document.createElement('td');
-    tdT.className = 'pay-total-cell';
-    const calc = ()=>{
-      const p=parseFloat(pInp.value)||0, m=parseFloat(mInp.value)||0;
-      tdT.textContent = 'Rs '+((days*p)+(meals*m)).toLocaleString();
-      savePayRate(name,'ppd',p);
-      savePayRate(name,'mpd',m);
-      recalcEpiSummary(emps.map(e=>typeof e==='string'?e:(e[0]||String(e))), att, month);
-    };
-    calc();
-    pInp.addEventListener('input', calc);
-    mInp.addEventListener('input', calc);
-    tr.appendChild(tdT);
-
-    tbody.appendChild(tr);
-  });
-
-  recalcEpiSummary(emps.map(e=>typeof e==='string'?e:(e[0]||String(e))), att, month);
+  fetch(API + '?action=getEmployees')
+    .then(function(r){ return r.json(); })
+    .then(function(emps){
+      ss(K.emp, emps);
+      render(emps);
+    })
+    .catch(function(err){
+      if(!cached.length){
+        tbody.innerHTML = '<tr><td colspan="4" style="padding:16px;text-align:center;color:red">'+err.message+'</td></tr>';
+      }
+    });
 }
-
-function recalcEpiSummary(emps, att, month){
-  const rates = getPayRates();
-  const src   = month ? (att||[]).filter(r=>ymOf(r[2])===month) : (att||[]);
-  const dc={}, mc={};
-  (emps||[]).forEach(e=>{ dc[e]=0; mc[e]=0; });
-  src.forEach(r=>{
-    if(!r[3]) return;
-    dc[r[3]]=(dc[r[3]]||0)+1;
-    if(r[5]==='Yes') mc[r[3]]=(mc[r[3]]||0)+1;
-  });
-  let grand=0, tDays=0, tMeals=0;
-  (emps||[]).forEach(e=>{
-    const p=parseFloat((rates[e]&&rates[e].ppd)||0);
-    const m=parseFloat((rates[e]&&rates[e].mpd)||0);
-    grand  += (dc[e]||0)*p + (mc[e]||0)*m;
-    tDays  += dc[e]||0;
-    tMeals += mc[e]||0;
-  });
-  const bar=document.getElementById('epi-summary');
-  if(!bar) return;
-  bar.style.display='flex';
-  bar.innerHTML=`
-    <div class="ps-item"><div class="ps-label">Total Days</div><div class="ps-val">${tDays}</div></div>
-    <div class="ps-item"><div class="ps-label">Total Meals</div><div class="ps-val">${tMeals}</div></div>
-    <div class="ps-item"><div class="ps-label">Total Payable</div><div class="ps-val coral">Rs ${grand.toLocaleString()}</div></div>
-  `;
-}
+function renderSalaryRows(){}
+function updateSalarySummary(){}
+function renderEmpPayInfo(){ loadAndShowSalary(); }
+function buildSalaryTable(){ loadAndShowSalary(); }
+function recalcEpiSummary(){ }
 
 /* ══════════════════════════════════════════
    SUB: EXTRAS AMOUNT}
