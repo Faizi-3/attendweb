@@ -922,9 +922,15 @@ tbody td input.ext-inp-wide { min-width:140px; }
           <div class="a-sub" id="sub-emppay">
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
               <div class="sec-title" style="margin-bottom:0">Employee Pay</div>
-              <div class="fg" style="min-width:160px;">
-                <label>Select Month</label>
-                <select id="ep-month" onchange="renderEmpPay()"><option value="">All Months</option></select>
+              <div style="display:flex;align-items:flex-end;gap:10px;">
+                <div class="fg" style="min-width:160px;">
+                  <label>Select Month</label>
+                  <select id="ep-month" onchange="renderEmpPay()"><option value="">All Months</option></select>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <button class="btn btn-slate btn-sm" id="ep-close-btn" onclick="toggleMonthClosed()">Close Month</button>
+                  <span id="ep-closed-msg" style="font-size:.82rem;color:var(--text3);display:none">Month closed. Click Edit Month to make changes.</span>
+                </div>
               </div>
             </div>
             <div id="ep-cards" class="emp-pay-grid">
@@ -987,7 +993,7 @@ tbody td input.ext-inp-wide { min-width:140px; }
 /* ══════════════════════════════════════════
    CONFIG
 ══════════════════════════════════════════ */
-const API = 'https://script.google.com/macros/s/AKfycbzNpAOEFAnsYy1FdYhJjdmWIUW2vt1uDSAkS-R7vXBmz37ZGrxS5rmnoNZskTg2gl4N/exec';
+const API = 'https://script.google.com/macros/s/AKfycbywaKj_3OuVwmXpyvNRb1pmgqa409BcpZBhuJRrs9aTYeL6F-D04M4sHXQgMqHOJUmP/exec';
 
 /* ══════════════════════════════════════════
    API
@@ -1407,16 +1413,25 @@ async function loadAdminAtt(force){
     populateMealMonths(adminData); populateMonths(adminData,'af-month');
     renderEmps(emps); renderSites(sites); fillSiteSels(sites);
 
-    // Load persisted pay rates, extras, & site payments from the backend (if available)
+    // Load persisted pay rates, extras, site payments, advances, and closed-month state from the backend (if available)
     try{
-      const [payRates, extras, sitePayments] = await Promise.all([
+      const [payRates, extras, sitePayments, advances, closedMonths] = await Promise.all([
         req({action:'getPayRates'}),
         req({action:'getExtras'}),
-        req({action:'getSitePayments'})
+        req({action:'getSitePayments'}),
+        req({action:'getAdvances'}),
+        req({action:'getClosedMonths'})
       ]);
       ls(PK.rates, payRates||{});
       ss(PK.extras, extras||[]);
       ss(PK.sitePay, sitePayments||[]);
+      ls(PK.advances, (advances||[]).reduce((acc,cur)=>{
+        if(!cur.month||!cur.employee) return acc;
+        acc[cur.month] = acc[cur.month]||{};
+        acc[cur.month][cur.employee] = parseFloat(cur.amount)||0;
+        return acc;
+      }, {}));
+      ls(PK.closedMonths, (closedMonths||[]).reduce((acc,cur)=>{ if(cur) acc[cur]=true; return acc; }, {}));
     }catch(_){ }
 
     updCacheBar('adm-cbar','adm-cdot','adm-clbl',K.ta);
@@ -1686,12 +1701,42 @@ function showToast(msg, type='info'){
    payRates: { empName: { ppd: number, mpd: number } }
    extras:   [ { date, emp, desc, amount } ]
 ══════════════════════════════════════════ */
-const PK = { rates:'at_payrates', extras:'at_extras', sitePay:'at_site_payments' }; // PR: pay rates are persisted in localStorage so they survive refresh
+const PK = {
+  rates: 'at_payrates',
+  extras: 'at_extras',
+  sitePay: 'at_site_payments',
+  advances: 'at_emp_advances',
+  closedMonths: 'at_closed_months'
+}; // PR: pay rates and advance/closure state are persisted in localStorage so they survive refresh
 const ls = (k,v)=>{ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
 const lg = k=>{ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):null; }catch(e){return null;} };
 const getPayRates = () => lg(PK.rates) || {};
 const getExtras   = () => sg(PK.extras) || [];
 const getSitePayments = () => sg(PK.sitePay) || [];
+const getAdvances = () => lg(PK.advances) || {};
+const getClosedMonths = () => lg(PK.closedMonths) || {};
+function saveAdvances(v){ ls(PK.advances, v); }
+function saveClosedMonths(v){ ls(PK.closedMonths, v); }
+function getAdvance(emp, month){
+  if(!month) return 0;
+  const adv = getAdvances();
+  return parseFloat((adv[month]||{})[emp])||0;
+}
+function setAdvance(emp, month, amt){
+  if(!month) return;
+  const adv = getAdvances();
+  if(!adv[month]) adv[month] = {};
+  adv[month][emp] = parseFloat(amt)||0;
+  saveAdvances(adv);
+}
+function isMonthClosed(month){ return month ? !!getClosedMonths()[month] : false; }
+function setMonthClosed(month, closed){
+  if(!month) return;
+  const cm = getClosedMonths();
+  if(closed) cm[month] = true;
+  else delete cm[month];
+  saveClosedMonths(cm);
+}
 function savePayRate(emp, field, val){
   const r = getPayRates();
   if(!r[emp]) r[emp] = { ppd:0, mpd:0 };
@@ -1723,12 +1768,50 @@ async function saveSitePayments(arr){
    Called whenever adminData is refreshed
 ══════════════════════════════════════════ */
 function populatePayMonths(){
-  ['epi-month','ep-month','sp-month','ext-month'].forEach(id => populateMonths(adminData, id));
+  const advanceMonths = Object.keys(getAdvances()||{});
+  const closedMonths = Object.keys(getClosedMonths()||{});
+  const extraMonths = [...new Set([...advanceMonths, ...closedMonths])];
+  const extraData = extraMonths.map(m=>[null,null,m]);
+
+  const monthData = [...adminData, ...extraData];
+  ['epi-month','ep-month','sp-month','ext-month'].forEach(id => populateMonths(monthData, id));
 
   // Site payments may have months that aren't in attendance data (e.g. advance payments)
   const sitePayMonths = (getSitePayments()||[]).map(p=>p.date).filter(Boolean);
   const sitePayData = sitePayMonths.map(d=>[null,null,d]);
   populateMonths(sitePayData, 'spay-month');
+}
+
+async function toggleMonthClosed(){
+  const month = document.getElementById('ep-month').value;
+  if(!month){ showToast('Select a month first.', 'error'); return; }
+  const closed = isMonthClosed(month);
+  setMonthClosed(month, !closed);
+
+  try{
+    await req({ action:'setClosedMonth', month, closed: String(!closed) });
+  }catch(_){ /* silent */ }
+
+  showToast(closed ? 'Month unlocked. You can edit now.' : 'Month closed. Changes are locked.', closed ? 'info' : 'success');
+  renderEmpPay();
+}
+
+async function saveAdvance(btn){
+  const month = document.getElementById('ep-month').value;
+  if(!month){ showToast('Select a month first.', 'error'); return; }
+  const card = btn.closest('.emp-pay-card');
+  const emp = card?.dataset?.emp;
+  if(!emp){ showToast('Employee not found.', 'error'); return; }
+  const input = card.querySelector('input.emp-adv-input');
+  const val = input ? parseFloat(input.value) || 0 : 0;
+  setAdvance(emp, month, val);
+
+  try{
+    await req({ action:'saveAdvance', month, employee: emp, amount: String(val) });
+  }catch(_){ /* silent */ }
+
+  renderEmpPay();
+  showToast('Advance saved.', 'success');
 }
 
 /* ══════════════════════════════════════════
@@ -2086,8 +2169,17 @@ function renderEmpPay(){
   const cards = document.getElementById('ep-cards');
   cards.innerHTML='';
 
+  const closeBtn = document.getElementById('ep-close-btn');
+  const closedMsg = document.getElementById('ep-closed-msg');
+  const monthSelect = document.getElementById('ep-month');
+  const closed = month && isMonthClosed(month);
+  if(closeBtn){ closeBtn.textContent = closed ? 'Edit Month' : 'Close Month'; closeBtn.disabled = !month; }
+  if(closedMsg) closedMsg.style.display = closed ? 'inline-block' : 'none';
+  if(monthSelect) monthSelect.disabled = closed;
+
   const filtered = month ? adminData.filter(r=>ymOf(r[2])===month) : adminData;
   const extFiltered = month ? getExtras().filter(x=>x.date&&x.date.slice(0,7)===month) : getExtras();
+  const advancesData = month ? (getAdvances()[month]||{}) : {};
 
   const dayCount={}, mealCount={}, extraTotals={};
   emps.forEach(e=>{ dayCount[e]=0; mealCount[e]=0; extraTotals[e]=0; });
@@ -2104,12 +2196,32 @@ function renderEmpPay(){
 
   if(!emps.length){ cards.innerHTML='<div class="empty-state" style="grid-column:1/-1">No employees found.</div>'; return; }
 
+  let totalPay = 0;
+  let totalAdvance = 0;
+  let totalRemaining = 0;
+  let totalAttPay = 0;
+  let totalMealPay = 0;
+  let totalExtras = 0;
+
   emps.forEach(emp=>{
     const ppd=(rates[emp]&&rates[emp].ppd)||0, mpd=(rates[emp]&&rates[emp].mpd)||0;
     const days=dayCount[emp]||0, meals=mealCount[emp]||0, extras=extraTotals[emp]||0;
     const attPay=days*ppd, mealPay=meals*mpd, total=attPay+mealPay+extras;
+    const advance = parseFloat(advancesData[emp]||0) || 0;
+    const remaining = total - advance;
+    const cleared = remaining <= 0;
+
+    totalPay += total;
+    totalAdvance += advance;
+    totalRemaining += remaining;
+    totalAttPay += attPay;
+    totalMealPay += mealPay;
+    totalExtras += extras;
+
     const initials=emp.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
     const card=document.createElement('div'); card.className='emp-pay-card';
+    card.dataset.emp = emp;
+    const disabledAttr = closed ? 'disabled' : '';
     card.innerHTML=`
       <div class="epc-name"><div class="epc-avatar">${initials}</div>${emp}</div>
       <div class="epc-row"><span class="epc-label">Days Present</span><span class="epc-val">${days} × Rs ${ppd.toLocaleString()}</span></div>
@@ -2117,10 +2229,26 @@ function renderEmpPay(){
       <div class="epc-row"><span class="epc-label">Meals</span><span class="epc-val">${meals} × Rs ${mpd.toLocaleString()}</span></div>
       <div class="epc-row"><span class="epc-label">Meal Pay</span><span class="epc-val">Rs ${mealPay.toLocaleString()}</span></div>
       <div class="epc-row"><span class="epc-label">Extras (net)</span><span class="epc-val">Rs ${extras.toLocaleString()}</span></div>
+      <div class="epc-row"><span class="epc-label">Advance Paid</span><span class="epc-val" style="display:flex;align-items:center;gap:6px;"><input class="ext-inp ext-inp-wide emp-adv-input" type="number" min="0" value="${advance}" ${disabledAttr} /><button class="btn btn-sky btn-xs" ${disabledAttr} onclick="saveAdvance(this)">Save</button></span></div>
+      <div class="epc-row"><span class="epc-label">Remaining</span><span class="epc-val">Rs ${remaining.toLocaleString()}</span></div>
+      ${cleared?`<div class="epc-row"><span class="epc-label"></span><span class="epc-val balance-positive">Payment Cleared</span></div>`:''}
       <div class="epc-total"><span>Total Pay</span><strong>Rs ${total.toLocaleString()}</strong></div>
     `;
     cards.appendChild(card);
   });
+
+  const summary = document.createElement('div');
+  summary.className = 'pay-total-row';
+  summary.style.gridColumn = '1/-1';
+  summary.innerHTML = `
+    <span>Monthly Totals</span>
+    <strong>
+      Pay: Rs ${totalPay.toLocaleString()} &nbsp;|&nbsp;
+      Advance: Rs ${totalAdvance.toLocaleString()} &nbsp;|&nbsp;
+      Remaining: Rs ${totalRemaining.toLocaleString()}
+    </strong>
+  `;
+  cards.appendChild(summary);
 }
 
 /* ══════════════════════════════════════════
