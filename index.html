@@ -2241,12 +2241,24 @@ function renderEmpPay(){
   summary.className = 'pay-total-row';
   summary.style.gridColumn = '1/-1';
   summary.innerHTML = `
-    <span>Monthly Totals</span>
-    <strong>
-      Pay: Rs ${totalPay.toLocaleString()} &nbsp;|&nbsp;
-      Advance: Rs ${totalAdvance.toLocaleString()} &nbsp;|&nbsp;
-      Remaining: Rs ${totalRemaining.toLocaleString()}
-    </strong>
+    <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
+      <thead>
+        <tr>
+          <th style="text-align:left;padding:6px 10px;color:var(--text3);">Metric</th>
+          <th style="text-align:right;padding:6px 10px;color:var(--text3);">Total Pay</th>
+          <th style="text-align:right;padding:6px 10px;color:var(--text3);">Advance</th>
+          <th style="text-align:right;padding:6px 10px;color:var(--text3);">Remaining</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="padding:8px 10px;border-top:1px solid rgba(61,90,128,.14);">All Employees</td>
+          <td style="padding:8px 10px;border-top:1px solid rgba(61,90,128,.14);text-align:right">Rs ${totalPay.toLocaleString()}</td>
+          <td style="padding:8px 10px;border-top:1px solid rgba(61,90,128,.14);text-align:right">Rs ${totalAdvance.toLocaleString()}</td>
+          <td style="padding:8px 10px;border-top:1px solid rgba(61,90,128,.14);text-align:right">Rs ${totalRemaining.toLocaleString()}</td>
+        </tr>
+      </tbody>
+    </table>
   `;
   cards.appendChild(summary);
 }
